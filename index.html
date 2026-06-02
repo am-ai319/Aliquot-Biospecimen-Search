@@ -126,7 +126,7 @@
   </div>
 
   <!-- ① Token -->
-  <div class="card">
+  <div class="card" id="tokenCard">
     <div class="card-label">Aliquot Session Token</div>
     <div class="token-row">
       <input type="password" id="tokenInput"
@@ -252,15 +252,38 @@ function setUser(email) {
   }
 }
 
-// Restore saved token on load
-window.addEventListener('DOMContentLoaded', () => {
+// On load: try to auto-detect email, fall back to saved token
+window.addEventListener('DOMContentLoaded', async () => {
+  addTC(); addExp();
+  await autoDetectUser();
+});
+
+async function autoDetectUser() {
+  try {
+    // Pass any saved token so the server can decode it if CF identity fails
+    const saved = localStorage.getItem('cf_token') || '';
+    const res = await fetch('/api/whoami', {
+      headers: saved ? { 'X-CF-Token': saved } : {}
+    });
+    const { email, source } = await res.json();
+
+    if (email) {
+      setUser(email);
+      if (source === 'cf-identity') {
+        // Fully automatic (deployed behind Cloudflare Access) — hide token card
+        document.getElementById('tokenCard').classList.add('hidden');
+        return;
+      }
+    }
+  } catch { /* ignore */ }
+
+  // Restore saved token into field
   const saved = localStorage.getItem('cf_token');
   if (saved) {
     document.getElementById('tokenInput').value = saved;
     onToken();
   }
-  addTC(); addExp();
-});
+}
 
 // ─── Search ───────────────────────────────────────────────────────────────
 async function doSearch() {

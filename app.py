@@ -24,12 +24,19 @@ import urllib.error
 from flask import Flask, jsonify, request, send_from_directory
 
 ALIQUOT_BASE = "https://aliquot.txgmesh.net/api/biospecimens"
+
+# Optional service token — if set, the server authenticates all Aliquot API
+# calls so users never need to paste their CF_Authorization token.
+CF_CLIENT_ID     = os.environ.get("CF_CLIENT_ID", "")
+CF_CLIENT_SECRET = os.environ.get("CF_CLIENT_SECRET", "")
+USE_SERVICE_TOKEN = bool(CF_CLIENT_ID and CF_CLIENT_SECRET)
+
 app = Flask(__name__, static_folder=".")
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
-def make_headers(cf_token: str) -> dict:
+def make_headers(cf_token: str = "") -> dict:
     h = {
         "Accept": "application/json, */*",
         "User-Agent": (
@@ -40,7 +47,12 @@ def make_headers(cf_token: str) -> dict:
         "Origin": "https://aliquot.txgmesh.net",
         "Referer": "https://aliquot.txgmesh.net/",
     }
-    if cf_token:
+    if USE_SERVICE_TOKEN:
+        # Service token: server-level auth — no user token needed
+        h["CF-Access-Client-Id"]     = CF_CLIENT_ID
+        h["CF-Access-Client-Secret"] = CF_CLIENT_SECRET
+    elif cf_token:
+        # Per-user token passed from the browser
         h["Cookie"] = f"CF_Authorization={cf_token}"
         h["CF-Access-Jwt-Assertion"] = cf_token
     return h
@@ -113,6 +125,50 @@ def get_cf_token() -> str:
 @app.route("/")
 def index():
     return send_from_directory(".", "index.html")
+
+
+@app.route("/api/whoami")
+def whoami():
+    """
+    Return the logged-in user's email.
+    On Railway (behind Cloudflare Access): reads from /cdn-cgi/access/get-identity.
+    Locally: decodes the CF_Authorization JWT passed in X-CF-Token.
+    """
+    # ── Cloudflare Access identity (works when deployed behind CF Access) ──
+    cf_cookie = request.cookies.get("CF_Authorization", "")
+    if cf_cookie:
+        try:
+            identity_url = "https://aliquot.txgmesh.net/cdn-cgi/access/get-identity"
+            req = urllib.request.Request(
+                identity_url,
+                headers={
+                    "Cookie": f"CF_Authorization={cf_cookie}",
+                    "User-Agent": "Mozilla/5.0 Chrome/124.0.0.0",
+                },
+            )
+            with urllib.request.urlopen(req) as r:
+                data = json.loads(r.read())
+                email = data.get("email", "")
+                if email:
+                    return jsonify({"email": email, "source": "cf-identity"})
+        except Exception:
+            pass
+
+    # ── Fall back: decode JWT from X-CF-Token header ──────────────────────
+    user_token = request.headers.get("X-CF-Token", "")
+    if user_token:
+        try:
+            import base64
+            parts = user_token.split(".")
+            pad = parts[1] + "=" * (4 - len(parts[1]) % 4)
+            payload = json.loads(base64.urlsafe_b64decode(pad))
+            email = payload.get("email") or (payload.get("custom") or {}).get("email", "")
+            if email:
+                return jsonify({"email": email, "source": "jwt-decode"})
+        except Exception:
+            pass
+
+    return jsonify({"email": "", "source": "none"}), 200
 
 
 @app.route("/api/search")
