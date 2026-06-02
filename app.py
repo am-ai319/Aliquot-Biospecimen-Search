@@ -143,18 +143,47 @@ def search():
 @app.route("/api/biospecimens/<specimen_id>", methods=["PUT"])
 def update_specimen(specimen_id):
     """
-    Update a biospecimen's description.
-    Body: { "record": <full biospecimen object>, "description": "<new text>" }
-    The full record must be sent by the client (single-record GET returns HTML).
+    Update a biospecimen's userNotes (inside additionalProperties) and description.
+    Body: {
+      "record":              <full biospecimen object>,
+      "transcripts_per_cell": [1234.5, 1100.0],   # list of floats
+      "experiment_ids":      ["EXP-001", "EXP-002"],
+      "updated_by":          "user@example.com",
+      "description":         "<full new description string>"
+    }
     """
     payload = request.get_json(force=True) or {}
     record = payload.get("record")
-    description = payload.get("description", "")
-
     if not record:
         return jsonify({"error": "Missing 'record' in request body"}), 400
 
-    record["description"] = description
+    # ── Write to additionalProperties.userNotes (structured) ──────────────
+    tc_vals = payload.get("transcripts_per_cell", [])
+    exp_ids = payload.get("experiment_ids", [])
+    updated_by = payload.get("updated_by", "")
+    updated_at = payload.get("updated_at", "")
+
+    avg_tc = round(sum(tc_vals) / len(tc_vals), 4) if tc_vals else None
+
+    user_notes = {}
+    if avg_tc is not None:
+        user_notes["transcripts_per_cell"] = avg_tc
+        if len(tc_vals) > 1:
+            user_notes["transcripts_per_cell_values"] = tc_vals
+    if exp_ids:
+        user_notes["experiment_ids"] = exp_ids
+    if updated_by:
+        user_notes["updated_by"] = updated_by
+    if updated_at:
+        user_notes["updated_at"] = updated_at
+
+    if "additionalProperties" not in record or record["additionalProperties"] is None:
+        record["additionalProperties"] = {}
+    record["additionalProperties"]["userNotes"] = user_notes
+
+    # ── Also update description ────────────────────────────────────────────
+    record["description"] = payload.get("description", record.get("description", ""))
+
     cf_token = get_cf_token()
 
     url = f"{ALIQUOT_BASE}/{urllib.parse.quote(specimen_id)}"
