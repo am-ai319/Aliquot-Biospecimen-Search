@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aliquot — Spatial Biology Editor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f6fa;
+      color: #1a1a2e;
+      min-height: 100vh;
+      padding: 32px 16px;
+    }
+
+    .container { max-width: 700px; margin: 0 auto; }
+
+    h1 { font-size: 1.4rem; font-weight: 600; color: #1a1a2e; margin-bottom: 4px; }
+    .subtitle { font-size: 0.85rem; color: #6b7280; margin-bottom: 28px; }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
+
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #9ca3af;
+      margin-bottom: 14px;
+    }
+
+    .search-row { display: flex; gap: 10px; }
+    .search-row input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .search-row input:focus { border-color: #6366f1; }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity .15s, background .15s;
+    }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    .btn-primary { background: #6366f1; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #4f46e5; }
+
+    .btn-success { background: #10b981; color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #059669; }
+
+    .btn-ghost {
+      background: #f3f4f6; color: #374151;
+      padding: 6px 12px; font-size: 0.82rem;
+    }
+    .btn-ghost:hover:not(:disabled) { background: #e5e7eb; }
+
+    .btn-remove {
+      background: none; color: #ef4444;
+      padding: 4px 8px; font-size: 1rem;
+      line-height: 1; border-radius: 6px;
+    }
+    .btn-remove:hover { background: #fee2e2; }
+
+    .status {
+      padding: 10px 14px; border-radius: 8px;
+      font-size: 0.875rem; margin-top: 12px; display: none;
+    }
+    .status.info    { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; display: block; }
+    .status.success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; display: block; }
+    .status.error   { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; display: block; }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 6px 12px;
+      font-size: 0.875rem;
+    }
+    .meta-label { color: #9ca3af; font-weight: 500; }
+    .meta-value { color: #111827; word-break: break-all; }
+
+    .entry-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .entry-row input {
+      flex: 1; padding: 8px 12px;
+      border: 1px solid #d1d5db; border-radius: 8px;
+      font-size: 0.9rem; outline: none; transition: border-color .15s;
+    }
+    .entry-row input:focus { border-color: #6366f1; }
+    .add-row { margin-top: 4px; }
+
+    .summary-box {
+      background: #f9fafb; border: 1px solid #e5e7eb;
+      border-radius: 8px; padding: 14px 16px; font-size: 0.875rem;
+    }
+    .summary-box .avg-value {
+      font-size: 1.5rem; font-weight: 700; color: #6366f1; line-height: 1.2;
+    }
+    .summary-box .avg-label { font-size: 0.75rem; color: #9ca3af; margin-bottom: 6px; }
+    .summary-box .exp-list { list-style: none; padding: 0; margin-top: 6px; }
+    .summary-box .exp-list li {
+      padding: 4px 0; border-bottom: 1px solid #f3f4f6;
+      color: #374151; font-family: monospace; font-size: 0.85rem;
+    }
+    .summary-box .exp-list li:last-child { border-bottom: none; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 520px) { .two-col { grid-template-columns: 1fr; } }
+
+    .section-label { font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 10px; }
+
+    .description-preview {
+      background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;
+      padding: 12px 14px; font-size: 0.82rem; color: #374151;
+      white-space: pre-wrap; max-height: 160px; overflow-y: auto; font-family: monospace;
+    }
+
+    .divider { height: 1px; background: #e5e7eb; margin: 18px 0; }
+    .save-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>Spatial Biology Editor</h1>
+  <p class="subtitle">Search a biospecimen by name or UUID, enter spatial biology data, and save it to the description.</p>
+
+  <!-- Search -->
+  <div class="card">
+    <div class="card-title">Biospecimen Lookup</div>
+    <div class="search-row">
+      <input type="text" id="specimenInput" placeholder="Enter name (e.g. 24-15515-LU-5) or UUID…" />
+      <button class="btn-primary" id="searchBtn" onclick="fetchSpecimen()">Search</button>
+    </div>
+    <div class="status" id="searchStatus"></div>
+  </div>
+
+  <!-- Record info -->
+  <div class="card hidden" id="recordCard">
+    <div class="card-title">Record</div>
+    <div class="meta-grid" id="metaGrid"></div>
+    <div class="divider"></div>
+    <div class="section-label">Current Description</div>
+    <div class="description-preview" id="currentDesc">—</div>
+  </div>
+
+  <!-- Spatial biology input -->
+  <div class="card hidden" id="spatialCard">
+    <div class="card-title">Spatial Biology Data</div>
+
+    <div class="two-col">
+      <div>
+        <div class="section-label">Transcripts / Cell</div>
+        <div id="transcriptRows"></div>
+        <button class="btn-ghost add-row" onclick="addTranscriptRow()">+ Add value</button>
+      </div>
+      <div>
+        <div class="section-label">Experiment ID</div>
+        <div id="experimentRows"></div>
+        <button class="btn-ghost add-row" onclick="addExperimentRow()">+ Add ID</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">Summary (will be saved to description)</div>
+    <div class="two-col">
+      <div class="summary-box">
+        <div class="avg-label">Avg Transcripts / Cell</div>
+        <div class="avg-value" id="avgDisplay">—</div>
+        <div style="font-size:.75rem;color:#9ca3af;margin-top:4px;" id="avgDetail"></div>
+      </div>
+      <div class="summary-box">
+        <div class="avg-label">Experiment IDs</div>
+        <ul class="exp-list" id="expListDisplay"><li style="color:#9ca3af;">None added</li></ul>
+      </div>
+    </div>
+
+    <div class="save-row">
+      <button class="btn-success" id="saveBtn" onclick="saveDescription()">Save to Description</button>
+    </div>
+    <div class="status" id="saveStatus"></div>
+  </div>
+
+</div>
+<script>
+  const BASE_URL = '/api/biospecimens';
+  let currentRecord = null;
+
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  // ── Fetch specimen ──────────────────────────────────────────────────────
+  async function fetchSpecimen() {
+    const id = document.getElementById('specimenInput').value.trim();
+    if (!id) return showStatus('searchStatus', 'Please enter a biospecimen name or UUID.', 'error');
+
+    setStatus('searchStatus', 'Searching…', 'info');
+    document.getElementById('searchBtn').disabled = true;
+
+    try {
+      let res, data;
+
+      if (UUID_RE.test(id)) {
+        // Direct UUID lookup
+        res = await fetch(`${BASE_URL}/${encodeURIComponent(id)}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || `HTTP ${res.status}`);
+        }
+        data = await res.json();
+        // Unwrap envelope if present: { data: {...} }
+        if (data && data.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
+          data = data.data;
+        }
+      } else {
+        // Name-based search
+        res = await fetch(`${BASE_URL}/search?q=${encodeURIComponent(id)}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || `HTTP ${res.status}`);
+        }
+        const raw = await res.json();
+        // Unwrap common envelope shapes
+        let list = raw;
+        if (raw && raw.data) list = raw.data;
+        if (!Array.isArray(list)) list = [list];
+        data = list[0];
+        if (!data) throw new Error('No biospecimen found with that name.');
+      }
+
+      currentRecord = data;
+      renderRecord(data);
+      showStatus('searchStatus', `Loaded: ${data.name || data.id || id}`, 'success');
+
+    } catch (err) {
+      showStatus('searchStatus', `Error: ${err.message}`, 'error');
+    } finally {
+      document.getElementById('searchBtn').disabled = false;
+    }
+  }
+
+  function renderRecord(data) {
+    const grid = document.getElementById('metaGrid');
+    grid.innerHTML = '';
+    const skip = new Set(['description']);
+    for (const [k, v] of Object.entries(data)) {
+      if (skip.has(k) || typeof v === 'object') continue;
+      grid.innerHTML += `<div class="meta-label">${k}</div><div class="meta-value">${v ?? '—'}</div>`;
+    }
+    document.getElementById('currentDesc').textContent = data.description || '(empty)';
+    document.getElementById('recordCard').classList.remove('hidden');
+    document.getElementById('spatialCard').classList.remove('hidden');
+    seedFromDescription(data.description || '');
+  }
+
+  // ── Seed from existing description ────────────────────────────────────
+  function seedFromDescription(desc) {
+    document.getElementById('transcriptRows').innerHTML = '';
+    document.getElementById('experimentRows').innerHTML = '';
+
+    const blockMatch = desc.match(/--- Spatial Biology ---([\s\S]*?)(?:---|$)/);
+    if (!blockMatch) {
+      addTranscriptRow(); addExperimentRow(); return;
+    }
+    const block = blockMatch[1];
+    const tMatch = block.match(/Individual values:\s*([^\n]+)/);
+    if (tMatch) {
+      tMatch[1].split(',').map(s => s.trim()).filter(Boolean).forEach(v => addTranscriptRow(v));
+    } else { addTranscriptRow(); }
+
+    const eLines = [...block.matchAll(/^- (.+)$/gm)].map(m => m[1].trim());
+    if (eLines.length) { eLines.forEach(e => addExperimentRow(e)); }
+    else { addExperimentRow(); }
+
+    updateSummary();
+  }
+
+  // ── Dynamic rows ──────────────────────────────────────────────────────
+  function addTranscriptRow(value = '') {
+    const div = document.createElement('div');
+    div.className = 'entry-row';
+    div.innerHTML = `
+      <input type="number" step="any" placeholder="e.g. 1250.5" value="${value}"
+             oninput="updateSummary()" />
+      <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>`;
+    document.getElementById('transcriptRows').appendChild(div);
+    updateSummary();
+  }
+
+  function addExperimentRow(value = '') {
+    const div = document.createElement('div');
+    div.className = 'entry-row';
+    div.innerHTML = `
+      <input type="text" placeholder="e.g. EXP-2024-001" value="${value}"
+             oninput="updateSummary()" />
+      <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>`;
+    document.getElementById('experimentRows').appendChild(div);
+    updateSummary();
+  }
+
+  function removeRow(btn) { btn.closest('.entry-row').remove(); updateSummary(); }
+
+  // ── Live summary ──────────────────────────────────────────────────────
+  function updateSummary() {
+    const tValues = [...document.querySelectorAll('#transcriptRows input')]
+      .map(i => parseFloat(i.value)).filter(v => !isNaN(v));
+
+    const avgEl = document.getElementById('avgDisplay');
+    const detEl = document.getElementById('avgDetail');
+    if (tValues.length === 0) {
+      avgEl.textContent = '—'; detEl.textContent = '';
+    } else {
+      const avg = tValues.reduce((a, b) => a + b, 0) / tValues.length;
+      avgEl.textContent = avg.toFixed(2);
+      detEl.textContent = tValues.length > 1
+        ? `${tValues.length} values: ${tValues.map(v => v.toFixed(2)).join(', ')}`
+        : '1 value';
+    }
+
+    const expValues = [...document.querySelectorAll('#experimentRows input')]
+      .map(i => i.value.trim()).filter(Boolean);
+    const listEl = document.getElementById('expListDisplay');
+    listEl.innerHTML = expValues.length
+      ? expValues.map(e => `<li>${e}</li>`).join('')
+      : '<li style="color:#9ca3af;">None added</li>';
+  }
+
+  // ── Save ──────────────────────────────────────────────────────────────
+  async function saveDescription() {
+    if (!currentRecord) return;
+
+    const tValues = [...document.querySelectorAll('#transcriptRows input')]
+      .map(i => parseFloat(i.value)).filter(v => !isNaN(v));
+    const expValues = [...document.querySelectorAll('#experimentRows input')]
+      .map(i => i.value.trim()).filter(Boolean);
+
+    if (!tValues.length && !expValues.length)
+      return showStatus('saveStatus', 'Add at least one value before saving.', 'error');
+
+    const avg = tValues.length
+      ? (tValues.reduce((a, b) => a + b, 0) / tValues.length).toFixed(2) : null;
+
+    let block = '--- Spatial Biology ---\n';
+    if (avg !== null) {
+      block += `Transcripts/Cell (avg): ${avg}\n`;
+      if (tValues.length > 1)
+        block += `Individual values: ${tValues.map(v => v.toFixed(2)).join(', ')}\n`;
+    }
+    if (expValues.length)
+      block += `Experiment IDs:\n${expValues.map(e => `- ${e}`).join('\n')}\n`;
+    block += '---';
+
+    const existingDesc = (currentRecord.description || '')
+      .replace(/\n*--- Spatial Biology ---[\s\S]*?---\s*/g, '').trimEnd();
+    const newDesc = existingDesc ? `${existingDesc}\n\n${block}` : block;
+
+    document.getElementById('saveBtn').disabled = true;
+    setStatus('saveStatus', 'Saving…', 'info');
+
+    try {
+      const recordId = currentRecord.id || document.getElementById('specimenInput').value.trim();
+      const res = await fetch(`${BASE_URL}/${encodeURIComponent(recordId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: newDesc }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
+      currentRecord.description = newDesc;
+      document.getElementById('currentDesc').textContent = newDesc;
+      showStatus('saveStatus', 'Description updated successfully.', 'success');
+    } catch (err) {
+      showStatus('saveStatus', `Save failed: ${err.message}`, 'error');
+    } finally {
+      document.getElementById('saveBtn').disabled = false;
+    }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+  function setStatus(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = `status ${type}`;
+  }
+  function showStatus(id, msg, type) { setStatus(id, msg, type); }
+
+  document.getElementById('specimenInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') fetchSpecimen();
+  });
+</script>
+</body>
+</html>
