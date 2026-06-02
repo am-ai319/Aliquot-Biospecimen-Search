@@ -125,21 +125,6 @@
     </div>
   </div>
 
-  <!-- ① Token -->
-  <div class="card" id="tokenCard">
-    <div class="card-label">Aliquot Session Token</div>
-    <div class="token-row">
-      <input type="password" id="tokenInput"
-             placeholder="Paste your CF_Authorization cookie value…"
-             oninput="onToken()"/>
-      <span class="badge badge-off" id="tokenBadge">Not set</span>
-    </div>
-    <p class="help">
-      Get it from the browser tab where you're logged in to Aliquot:<br>
-      <strong>DevTools (⌥⌘I) → Application → Cookies → aliquot.txgmesh.net → CF_Authorization → Value</strong>
-    </p>
-  </div>
-
   <!-- ② Search -->
   <div class="card">
     <div class="card-label">Biospecimen Lookup</div>
@@ -209,87 +194,41 @@
 
 <script>
 // ─── State ────────────────────────────────────────────────────────────────
-let record = null;   // full biospecimen object from search
-let userEmail = '';  // decoded from JWT
+let record    = null;
+let userEmail = '';
+let userName  = '';
 
-// ─── Token handling ───────────────────────────────────────────────────────
-function onToken() {
-  const t = token();
-  const badge = document.getElementById('tokenBadge');
-  if (t) {
-    badge.textContent = '✓ Set';
-    badge.className = 'badge badge-ok';
-    localStorage.setItem('cf_token', t);
-    decodeEmail(t);
-  } else {
-    badge.textContent = 'Not set';
-    badge.className = 'badge badge-off';
-    localStorage.removeItem('cf_token');
-    setUser('');
-  }
-}
-
-function token() {
-  return document.getElementById('tokenInput').value.trim();
-}
-
-function decodeEmail(jwt) {
-  try {
-    const payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
-    const email = payload.email || (payload.custom && payload.custom.email) || '';
-    setUser(email);
-  } catch { setUser(''); }
-}
-
-function setUser(email) {
-  userEmail = email;
+// ─── Identity ─────────────────────────────────────────────────────────────
+function setUser(email, name) {
+  userEmail = email || '';
+  userName  = name  || '';
   const badge = document.getElementById('userBadge');
-  if (email) {
-    document.getElementById('userEmail').textContent = email;
+  if (userEmail) {
+    document.getElementById('userEmail').textContent = userName || userEmail;
     badge.style.display = 'inline-flex';
   } else {
     badge.style.display = 'none';
   }
 }
 
-// On load: try to auto-detect email, fall back to saved token
+async function autoDetectUser() {
+  try {
+    const res = await fetch('/api/whoami', { credentials: 'include' });
+    const { email, name } = await res.json();
+    setUser(email, name);
+  } catch { /* silent — badge stays hidden */ }
+}
+
+// On load
 window.addEventListener('DOMContentLoaded', async () => {
   addTC(); addExp();
   await autoDetectUser();
 });
 
-async function autoDetectUser() {
-  try {
-    // Pass any saved token so the server can decode it if CF identity fails
-    const saved = localStorage.getItem('cf_token') || '';
-    const res = await fetch('/api/whoami', {
-      headers: saved ? { 'X-CF-Token': saved } : {}
-    });
-    const { email, source } = await res.json();
-
-    if (email) {
-      setUser(email);
-      if (source === 'cf-identity') {
-        // Fully automatic (deployed behind Cloudflare Access) — hide token card
-        document.getElementById('tokenCard').classList.add('hidden');
-        return;
-      }
-    }
-  } catch { /* ignore */ }
-
-  // Restore saved token into field
-  const saved = localStorage.getItem('cf_token');
-  if (saved) {
-    document.getElementById('tokenInput').value = saved;
-    onToken();
-  }
-}
-
 // ─── Search ───────────────────────────────────────────────────────────────
 async function doSearch() {
   const q = document.getElementById('searchInput').value.trim();
-  if (!q)   return setStatus('searchStatus', 'Enter a biospecimen name.', 'err');
-  if (!token()) return setStatus('searchStatus', 'Paste your CF_Authorization token first.', 'err');
+  if (!q) return setStatus('searchStatus', 'Enter a biospecimen name.', 'err');
 
   setStatus('searchStatus', 'Searching…', 'info');
   document.getElementById('searchBtn').disabled = true;
@@ -459,9 +398,8 @@ async function doSave() {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 function api(path, opts={}) {
-  const headers = { ...(opts.headers||{}) };
-  if (token()) headers['X-CF-Token'] = token();
-  return fetch(path, { ...opts, headers });
+  // credentials:'include' sends the CF_Authorization cookie automatically
+  return fetch(path, { credentials: 'include', ...opts });
 }
 
 function setStatus(id, msg, type) {

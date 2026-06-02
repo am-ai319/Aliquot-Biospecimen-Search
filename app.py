@@ -117,7 +117,8 @@ def do_put_formdata(url: str, record: dict, cf_token: str):
 
 
 def get_cf_token() -> str:
-    return request.headers.get("X-CF-Token", "").strip()
+    """Read the CF_Authorization cookie set automatically by Cloudflare Access."""
+    return request.cookies.get("CF_Authorization", "").strip()
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────
@@ -130,43 +131,50 @@ def index():
 @app.route("/api/whoami")
 def whoami():
     """
-    Return the logged-in user's email.
-    On Railway (behind Cloudflare Access): reads from /cdn-cgi/access/get-identity.
-    Locally: decodes the CF_Authorization JWT passed in X-CF-Token.
-    """
-    # ── Cloudflare Access identity (works when deployed behind CF Access) ──
-    cf_cookie = request.cookies.get("CF_Authorization", "")
-    if cf_cookie:
-        try:
-            identity_url = "https://aliquot.txgmesh.net/cdn-cgi/access/get-identity"
-            req = urllib.request.Request(
-                identity_url,
-                headers={
-                    "Cookie": f"CF_Authorization={cf_cookie}",
-                    "User-Agent": "Mozilla/5.0 Chrome/124.0.0.0",
-                },
-            )
-            with urllib.request.urlopen(req) as r:
-                data = json.loads(r.read())
-                email = data.get("email", "")
-                if email:
-                    return jsonify({"email": email, "source": "cf-identity"})
-        except Exception:
-            pass
+    Resolve the logged-in user's email via Cloudflare Access.
 
-    # ── Fall back: decode JWT from X-CF-Token header ──────────────────────
-    user_token = request.headers.get("X-CF-Token", "")
-    if user_token:
-        try:
-            import base64
-            parts = user_token.split(".")
-            pad = parts[1] + "=" * (4 - len(parts[1]) % 4)
-            payload = json.loads(base64.urlsafe_b64decode(pad))
-            email = payload.get("email") or (payload.get("custom") or {}).get("email", "")
+    On Railway the CF_Authorization cookie is set automatically when the user
+    authenticates through the shared Okta/CF Access policy — no token paste needed.
+    The server calls /cdn-cgi/access/get-identity on the same host to retrieve
+    the verified identity.
+    """
+    cf_cookie = request.cookies.get("CF_Authorization", "")
+    if not cf_cookie:
+        return jsonify({"email": "", "source": "none"}), 200
+
+    try:
+        # Ask Cloudflare to resolve the identity for this session cookie
+        host = request.host  # e.g. aliquot-spatial-bio.up.railway.app
+        identity_url = f"https://{host}/cdn-cgi/access/get-identity"
+        req = urllib.request.Request(
+            identity_url,
+            headers={
+                "Cookie": f"CF_Authorization={cf_cookie}",
+                "User-Agent": "Mozilla/5.0 Chrome/124.0.0.0",
+            },
+        )
+        with urllib.request.urlopen(req) as r:
+            data = json.loads(r.read())
+            email = data.get("email", "")
+            name  = data.get("name", "")
             if email:
-                return jsonify({"email": email, "source": "jwt-decode"})
-        except Exception:
-            pass
+                print(f"  whoami → {email} (CF identity)")
+                return jsonify({"email": email, "name": name, "source": "cf-identity"})
+    except Exception as exc:
+        print(f"  whoami CF identity failed: {exc}")
+
+    # Fallback: decode the JWT payload directly (works on localhost too)
+    try:
+        import base64 as _b64
+        parts = cf_cookie.split(".")
+        pad = parts[1] + "=" * (4 - len(parts[1]) % 4)
+        payload = json.loads(_b64.urlsafe_b64decode(pad))
+        email = payload.get("email") or (payload.get("custom") or {}).get("email", "")
+        if email:
+            print(f"  whoami → {email} (JWT decode)")
+            return jsonify({"email": email, "name": "", "source": "jwt-decode"})
+    except Exception:
+        pass
 
     return jsonify({"email": "", "source": "none"}), 200
 
