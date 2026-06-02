@@ -380,7 +380,8 @@
       const res = await fetch(`${BASE_URL}/${encodeURIComponent(recordId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: newDesc }),
+        // Send the full record so the server can PUT it back without re-fetching
+        body: JSON.stringify({ description: newDesc, record: currentRecord }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

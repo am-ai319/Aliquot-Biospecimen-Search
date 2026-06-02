@@ -151,31 +151,24 @@ def get_specimen(specimen_id):
 
 @app.route("/api/biospecimens/<path:specimen_id>", methods=["PATCH"])
 def patch_specimen(specimen_id):
-    """Update a biospecimen's description using PUT + multipart/form-data (Aliquot's pattern)."""
+    """Update a biospecimen's description using PUT + multipart/form-data (Aliquot's pattern).
+
+    The frontend sends the full record it already has so we avoid a re-fetch
+    (the single-record GET endpoint returns the SPA HTML, not JSON).
+    Expected body: { "description": "...", "record": { ...full biospecimen... } }
+    """
     payload = request.get_json(force=True)
     if not payload:
         return jsonify({"error": "Empty request body"}), 400
 
-    upstream = f"{ALIQUOT_BASE}/{urllib.parse.quote(specimen_id)}"
+    record = payload.get("record")
+    if not record:
+        return jsonify({"error": "Missing 'record' field — send the full biospecimen object"}), 400
 
-    # Step 1: Fetch the current full record
-    print(f"GET (for update) → {upstream}")
-    current, status, err = upstream_get(upstream)
-    if err:
-        print(f"  ← {status} fetch failed: {err}")
-        return jsonify(err), status
-
-    # Unwrap envelope if needed
-    record = current
-    if isinstance(current, dict) and "data" in current:
-        record = current["data"]
-        if isinstance(record, list):
-            record = record[0] if record else {}
-
-    # Step 2: Merge new description into the full record
+    # Merge updated description into the record
     record["description"] = payload.get("description", record.get("description", ""))
 
-    # Step 3: PUT the full record back as multipart/form-data
+    upstream = f"{ALIQUOT_BASE}/{urllib.parse.quote(specimen_id)}"
     print(f"PUT (update) → {upstream}")
     data, status, err = upstream_put_formdata(upstream, record)
     if err:
