@@ -76,9 +76,27 @@ def upstream_get(url):
         return None, 502, {"error": str(exc)}
 
 
-def upstream_patch(url, payload):
-    data = json.dumps(payload).encode()
-    req = urllib.request.Request(url, data=data, headers=cf_headers(), method="PATCH")
+def upstream_put_formdata(url, record):
+    """PUT a biospecimen using multipart/form-data with jsonData field (matches Aliquot's frontend)."""
+    import email.generator
+    import io
+    import random
+    import string
+
+    boundary = "----FormBoundary" + "".join(random.choices(string.ascii_letters + string.digits, k=16))
+    json_str = json.dumps(record).encode("utf-8")
+
+    # Build raw multipart body manually (no external deps)
+    body_parts = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="jsonData"\r\n\r\n'
+    ).encode("utf-8") + json_str + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+    headers = cf_headers()
+    headers["Content-Type"] = f"multipart/form-data; boundary={boundary}"
+    headers["Content-Length"] = str(len(body_parts))
+
+    req = urllib.request.Request(url, data=body_parts, headers=headers, method="PUT")
     try:
         with urllib.request.urlopen(req) as resp:
             body = decompress(resp.read(), resp.headers)
@@ -133,14 +151,33 @@ def get_specimen(specimen_id):
 
 @app.route("/api/biospecimens/<path:specimen_id>", methods=["PATCH"])
 def patch_specimen(specimen_id):
-    """Update a biospecimen's description."""
+    """Update a biospecimen's description using PUT + multipart/form-data (Aliquot's pattern)."""
     payload = request.get_json(force=True)
     if not payload:
         return jsonify({"error": "Empty request body"}), 400
 
     upstream = f"{ALIQUOT_BASE}/{urllib.parse.quote(specimen_id)}"
-    print(f"PATCH → {upstream}")
-    data, status, err = upstream_patch(upstream, payload)
+
+    # Step 1: Fetch the current full record
+    print(f"GET (for update) → {upstream}")
+    current, status, err = upstream_get(upstream)
+    if err:
+        print(f"  ← {status} fetch failed: {err}")
+        return jsonify(err), status
+
+    # Unwrap envelope if needed
+    record = current
+    if isinstance(current, dict) and "data" in current:
+        record = current["data"]
+        if isinstance(record, list):
+            record = record[0] if record else {}
+
+    # Step 2: Merge new description into the full record
+    record["description"] = payload.get("description", record.get("description", ""))
+
+    # Step 3: PUT the full record back as multipart/form-data
+    print(f"PUT (update) → {upstream}")
+    data, status, err = upstream_put_formdata(upstream, record)
     if err:
         print(f"  ← {status} {err}")
         return jsonify(err), status
