@@ -68,18 +68,38 @@ def decompress(raw: bytes, headers) -> bytes:
     return raw
 
 
+def parse_json_safe(raw: bytes):
+    """Parse JSON, returning None (not raising) on empty or non-JSON bodies."""
+    text = raw.strip()
+    if not text:
+        return None
+    # Reject HTML responses (SPA catch-all pages)
+    if text[:1] in (b"<", b"\xef"):
+        return None
+    try:
+        return json.loads(text)
+    except Exception:
+        return None
+
+
 def do_get(url: str, cf_token: str):
-    req = urllib.request.Request(url, headers=make_headers(cf_token), method="GET")
+    headers = make_headers(cf_token)
+    print(f"GET {url}")
+    print(f"Token present: {bool(cf_token)}, length: {len(cf_token) if cf_token else 0}")
+    print(f"Headers: Cookie={'yes' if 'Cookie' in headers else 'no'}")
+
+    req = urllib.request.Request(url, headers=headers, method="GET")
     try:
         with urllib.request.urlopen(req) as r:
             body = decompress(r.read(), r.headers)
-            return json.loads(body), r.status, None
+            print(f"Response: {len(body)} bytes, first 100 chars: {body[:100]}")
+            data = parse_json_safe(body)
+            if data is None:
+                return None, r.status, {"error": f"Non-JSON response from upstream (HTTP {r.status})", "body_preview": body[:200].decode('utf-8', errors='replace')}
+            return data, r.status, None
     except urllib.error.HTTPError as e:
         body = decompress(e.read(), e.headers)
-        try:
-            detail = json.loads(body)
-        except Exception:
-            detail = {"error": body.decode(errors="replace")[:500]}
+        detail = parse_json_safe(body) or {"error": body.decode(errors="replace")[:500]}
         return None, e.code, detail
     except Exception as exc:
         return None, 502, {"error": str(exc)}
@@ -104,13 +124,10 @@ def do_put_formdata(url: str, record: dict, cf_token: str):
     try:
         with urllib.request.urlopen(req) as r:
             raw = decompress(r.read(), r.headers)
-            return (json.loads(raw) if raw.strip() else {}), r.status, None
+            return (parse_json_safe(raw) or {}), r.status, None
     except urllib.error.HTTPError as e:
         raw = decompress(e.read(), e.headers)
-        try:
-            detail = json.loads(raw)
-        except Exception:
-            detail = {"error": raw.decode(errors="replace")[:500]}
+        detail = parse_json_safe(raw) or {"error": raw.decode(errors="replace")[:500]}
         return None, e.code, detail
     except Exception as exc:
         return None, 502, {"error": str(exc)}
@@ -118,7 +135,14 @@ def do_put_formdata(url: str, record: dict, cf_token: str):
 
 def get_cf_token() -> str:
     """Read the CF_Authorization cookie set automatically by Cloudflare Access."""
-    return request.cookies.get("CF_Authorization", "").strip()
+    token = request.cookies.get("CF_Authorization", "").strip()
+
+    # Fallback to hardcoded token for localhost testing
+    if not token:
+        token = os.environ.get("DEV_CF_TOKEN", "")
+        print(f"Using DEV_CF_TOKEN: {token[:50]}..." if token else "No DEV_CF_TOKEN found")
+
+    return token
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────
@@ -126,6 +150,168 @@ def get_cf_token() -> str:
 @app.route("/")
 def index():
     return send_from_directory(".", "index.html")
+
+
+@app.route("/test")
+def test():
+    """Ultra-simple test endpoint"""
+    cf_token = get_cf_token()
+
+    # Fetch data
+    url = f"{ALIQUOT_BASE}?searchQuery=brain&bioSpecimenType=FFPE_BLOCK&limit=10"
+    data, status, err = do_get(url, cf_token)
+
+    if err:
+        return f"ERROR: {err}", 500
+
+    records = data.get('data', [])
+
+    # Build plain text response
+    output = f"SEARCH RESULTS: Found {len(records)} specimens\n\n"
+
+    for i, r in enumerate(records, 1):
+        output += f"{i}. {r['name']}\n"
+        tissues = ', '.join([t['name'] for t in (r.get('tissueTypes') or [])])
+        output += f"   Tissue: {tissues}\n"
+        output += f"   Disease: {r.get('diseaseType', {}).get('name', 'N/A')}\n"
+        output += f"   Link: https://aliquot.txgmesh.net/biospecimen/{r['id']}\n\n"
+
+    return f"<pre>{output}</pre>", 200, {'Content-Type': 'text/html'}
+
+
+@app.route("/debug.html")
+def debug_page():
+    return send_from_directory(".", "debug.html")
+
+
+@app.route("/search.html")
+def search_page():
+    return send_from_directory(".", "search.html")
+
+
+@app.route("/simple-search")
+def simple_search():
+    """Server-rendered search - no JavaScript required"""
+    tissue = request.args.get('tissue', '').strip()
+    bio_type = request.args.get('type', '').strip()
+
+    results_html = ''
+    count = 0
+
+    if tissue or bio_type:
+        cf_token = get_cf_token()
+        params = []
+        if tissue:
+            params.append(f'searchQuery={urllib.parse.quote(tissue)}')
+        if bio_type:
+            params.append(f'bioSpecimenType={urllib.parse.quote(bio_type)}')
+
+        url = f"{ALIQUOT_BASE}?{'&'.join(params)}&limit=50"
+        data, status, err = do_get(url, cf_token)
+
+        if not err and data:
+            records = data.get('data', [])
+            count = len(records)
+
+            for r in records[:20]:
+                tissues = ', '.join([t.get('name', '') for t in (r.get('tissueTypes') or [])])
+                disease = r.get('diseaseType', {}).get('name') or r.get('primaryDiagnosis', 'N/A')
+                aliquot_url = f"https://aliquot.txgmesh.net/biospecimen/{r['id']}"
+
+                results_html += f'''
+                <div style="background:#f9f9f9;padding:15px;margin:10px 0;border-left:3px solid #2563eb;border-radius:4px;">
+                    <strong><a href="{aliquot_url}" target="_blank" style="color:#2563eb;">{r['name']}</a></strong><br>
+                    <small>Tissue: {tissues} | Disease: {disease}</small>
+                </div>
+                '''
+
+            if count > 20:
+                results_html += f'<p style="color:#666;margin:10px 0;"><em>...and {count - 20} more results</em></p>'
+
+    html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Aliquot Simple Search</title>
+        <style>
+            body {{ font-family: Arial; padding: 20px; background: #f5f5f5; }}
+            .box {{ background: white; padding: 20px; margin: 10px 0; border-radius: 8px; }}
+            input, select {{ padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; width: 300px; }}
+            button {{ padding: 12px 24px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; }}
+        </style>
+    </head>
+    <body>
+        <h1>🔬 Aliquot Biospecimen Search (Server-Side)</h1>
+
+        <div class="box">
+            <form method="GET" action="/simple-search">
+                <div>
+                    <label><strong>Tissue Type:</strong></label><br>
+                    <input type="text" name="tissue" placeholder="e.g., brain" value="{tissue}">
+                </div>
+                <div>
+                    <label><strong>Biospecimen Type:</strong></label><br>
+                    <select name="type">
+                        <option value="">All Types</option>
+                        <option value="FFPE_BLOCK" {'selected' if bio_type == 'FFPE_BLOCK' else ''}>FFPE Block</option>
+                        <option value="FROZEN_OCT_BLOCK" {'selected' if bio_type == 'FROZEN_OCT_BLOCK' else ''}>Frozen OCT Block</option>
+                        <option value="TISSUE_MICROARRAY" {'selected' if bio_type == 'TISSUE_MICROARRAY' else ''}>Tissue Microarray</option>
+                    </select>
+                </div>
+                <br>
+                <button type="submit">🔍 Search</button>
+            </form>
+        </div>
+
+        {f'<div class="box"><h3>Results ({count} found)</h3>{results_html}</div>' if count > 0 else ''}
+        {f'<div class="box"><p>No results found. Try different search terms.</p></div>' if (tissue or bio_type) and count == 0 else ''}
+    </body>
+    </html>
+    '''
+
+    return html
+
+
+@app.route("/api/debug")
+def debug():
+    """Debug endpoint to see what the API actually returns"""
+    cf_token = get_cf_token()
+
+    # Try a simple query with limit
+    test_url = f"{ALIQUOT_BASE}?limit=5"
+    print(f"DEBUG → {test_url}")
+
+    data, status, err = do_get(test_url, cf_token)
+    if err:
+        return jsonify({
+            "error": "API call failed",
+            "details": err,
+            "status": status,
+            "has_cf_token": bool(cf_token)
+        }), status
+
+    records = data.get("data", []) if isinstance(data, dict) else data
+
+    # Show structure
+    result = {
+        "total_returned": len(records) if records else 0,
+        "response_type": str(type(data)),
+        "envelope_keys": list(data.keys()) if isinstance(data, dict) else None,
+        "has_cf_token": bool(cf_token)
+    }
+
+    if records and len(records) > 0:
+        result["sample_record_keys"] = sorted(list(records[0].keys()))
+        result["sample_records"] = records
+
+        # Show unique tissue types
+        tissue_types = set()
+        for r in records:
+            if r.get("tissueType"):
+                tissue_types.add(r.get("tissueType"))
+        result["tissue_types_in_sample"] = sorted(list(tissue_types))
+
+    return jsonify(result), 200
 
 
 @app.route("/api/whoami")
@@ -181,14 +367,57 @@ def whoami():
 
 @app.route("/api/search")
 def search():
-    """Search biospecimens by name: GET /api/search?q=<name>"""
-    q = request.args.get("q", "").strip()
-    if not q:
-        return jsonify({"error": "Missing query parameter: q"}), 400
-
+    """
+    Advanced biospecimen search with multiple filters.
+    Query params:
+      - q: biospecimen name or ID (partial match)
+      - bioSpecimenType: FFPE_BLOCK, FROZEN_OCT_BLOCK, or TISSUE_MICROARRAY
+      - tissueType: tissue type filter (partial match)
+      - diseaseType: disease type filter (partial match)
+      - hasInventoryLocations: true/false
+      - hasImageLinks: true/false
+      - hasExperiments: true/false
+    """
     cf_token = get_cf_token()
-    url = f"{ALIQUOT_BASE}?name={urllib.parse.quote(q)}"
-    print(f"SEARCH → {url}")
+
+    # Get user filters
+    q = request.args.get("q", "").strip().lower()
+    spec_type = request.args.get("bioSpecimenType", "").strip()
+    tissue_type = request.args.get("tissueType", "").strip().lower()
+    disease_type = request.args.get("diseaseType", "").strip().lower()
+    has_inv = request.args.get("hasInventoryLocations", "").lower() == "true"
+    has_img = request.args.get("hasImageLinks", "").lower() == "true"
+    has_exp = request.args.get("hasExperiments", "").lower() == "true"
+
+    print(f"SEARCH filters: q={q!r}, type={spec_type!r}, tissue={tissue_type!r}, disease={disease_type!r}")
+
+    # Fetch from API - try using searchQuery for broad search
+    params = []
+
+    # Build a search query combining all text filters
+    search_terms = []
+    if q:
+        search_terms.append(q)
+    if tissue_type:
+        search_terms.append(tissue_type)
+    if disease_type:
+        search_terms.append(disease_type)
+
+    if search_terms:
+        # Use searchQuery parameter for general search
+        search_query = " ".join(search_terms)
+        params.append(f"searchQuery={urllib.parse.quote(search_query)}")
+    else:
+        # If no search terms, get recent records
+        params.append("limit=100")
+
+    # Add specimen type to API query if provided
+    if spec_type:
+        params.append(f"bioSpecimenType={urllib.parse.quote(spec_type)}")
+
+    query_string = "&".join(params)
+    url = f"{ALIQUOT_BASE}?{query_string}"
+    print(f"  API URL: {url}")
 
     data, status, err = do_get(url, cf_token)
     if err:
@@ -197,11 +426,106 @@ def search():
 
     # Unwrap envelope: { data: [...], total: N }
     records = data.get("data", []) if isinstance(data, dict) else data
-    if not records:
-        return jsonify({"error": f"No biospecimen found with name '{q}'"}), 404
+    print(f"  API returned {len(records) if records else 0} records")
 
-    print(f"  ← {status} OK — {len(records)} result(s)")
-    return jsonify(records[0]), 200
+    if not records:
+        return jsonify({"results": [], "total": 0, "message": "No biospecimens found"}), 200
+
+    # Apply client-side filters
+    filtered = []
+    for r in records:
+        # Filter by name/ID (partial match if not already filtered by API)
+        if q and not any(q in str(v).lower() for k, v in r.items() if k in ['name', 'id']):
+            continue
+
+        # Filter by specimen type
+        if spec_type and r.get("bioSpecimenType") != spec_type:
+            continue
+
+        # Filter by tissue type (search in tissueTypes array)
+        if tissue_type:
+            tissue_types = r.get("tissueTypes", [])
+            if not isinstance(tissue_types, list):
+                tissue_types = [tissue_types] if tissue_types else []
+            # Check if any tissue type contains our search term
+            if not any(tissue_type in str(t).lower() for t in tissue_types):
+                continue
+
+        # Filter by disease type (search in diseaseType array or diseaseTypeId)
+        if disease_type:
+            disease_types = r.get("diseaseType", [])
+            disease_type_ids = r.get("diseaseTypeId", [])
+            primary_diagnosis = r.get("primaryDiagnosis", "")
+
+            if not isinstance(disease_types, list):
+                disease_types = [disease_types] if disease_types else []
+            if not isinstance(disease_type_ids, list):
+                disease_type_ids = [disease_type_ids] if disease_type_ids else []
+
+            # Check if disease_type appears in any of these fields
+            found = False
+            for dt in disease_types:
+                if disease_type in str(dt).lower():
+                    found = True
+                    break
+            if not found:
+                for dt_id in disease_type_ids:
+                    if disease_type in str(dt_id).lower():
+                        found = True
+                        break
+            if not found and primary_diagnosis:
+                if disease_type in str(primary_diagnosis).lower():
+                    found = True
+
+            if not found:
+                continue
+
+        # Note: Inventory locations, images, and experiments are optional
+        # Don't filter them out - just display what's available
+        filtered.append(r)
+
+    print(f"  After filtering: {len(filtered)} result(s)")
+    return jsonify({"results": filtered, "total": len(filtered)}), 200
+
+
+@app.route("/api/biospecimens", methods=["GET"])
+def list_biospecimens():
+    """
+    Proxy for list endpoint - forwards all query params to Aliquot API.
+    """
+    cf_token = get_cf_token()
+
+    # Forward all query parameters
+    query_string = request.query_string.decode('utf-8')
+    url = f"{ALIQUOT_BASE}?{query_string}" if query_string else ALIQUOT_BASE
+    print(f"GET → {url}")
+
+    data, status, err = do_get(url, cf_token)
+    if err:
+        print(f"  ← {status} {err}")
+        return jsonify(err), status
+
+    print(f"  ← {status} OK (returned {len(data.get('data', []))} records)")
+    return jsonify(data), 200
+
+
+@app.route("/api/biospecimens/<specimen_id>", methods=["GET"])
+def get_specimen(specimen_id):
+    """
+    Fetch a single biospecimen by ID (UUID).
+    Returns full detail including inventoryLocations, experiments, etc.
+    """
+    cf_token = get_cf_token()
+    url = f"{ALIQUOT_BASE}/{urllib.parse.quote(specimen_id)}"
+    print(f"GET → {url}")
+
+    data, status, err = do_get(url, cf_token)
+    if err:
+        print(f"  ← {status} {err}")
+        return jsonify(err), status
+
+    print(f"  ← {status} OK")
+    return jsonify(data), 200
 
 
 @app.route("/api/biospecimens/<specimen_id>", methods=["PUT"])

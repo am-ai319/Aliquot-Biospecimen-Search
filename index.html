@@ -3,205 +3,278 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Spatial Biology — Aliquot</title>
+  <title>Enhanced Aliquot Search</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
       --purple:#6366f1;--purple-dark:#4f46e5;
       --green:#10b981;--green-dark:#059669;
+      --blue:#3b82f6;--blue-dark:#2563eb;
       --red:#ef4444;--gray:#6b7280;
       --border:#e5e7eb;--bg:#f5f6fa;
     }
     body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-      background:var(--bg);color:#111827;min-height:100vh;padding:40px 16px}
-    .page{max-width:720px;margin:0 auto}
+      background:var(--bg);color:#111827;min-height:100vh;padding:20px}
+    .container{max-width:1400px;margin:0 auto}
 
-    /* header */
-    .header{margin-bottom:32px}
-    .header h1{font-size:1.5rem;font-weight:700;color:#111}
-    .header p{font-size:.875rem;color:var(--gray);margin-top:4px}
-    .user-badge{display:inline-flex;align-items:center;gap:6px;margin-top:10px;
-      font-size:.78rem;padding:4px 10px;border-radius:20px;
+    /* Header */
+    .header{margin-bottom:24px;display:flex;justify-content:space-between;align-items:center}
+    .header h1{font-size:1.75rem;font-weight:700;color:#111}
+    .user-badge{display:inline-flex;align-items:center;gap:6px;
+      font-size:.8rem;padding:6px 12px;border-radius:20px;
       background:#ede9fe;color:#4f46e5;font-weight:500}
-    .user-badge svg{width:12px;height:12px}
+    .user-badge svg{width:14px;height:14px}
 
-    /* cards */
-    .card{background:#fff;border:1px solid var(--border);border-radius:12px;
-      padding:24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
-    .card-label{font-size:.7rem;font-weight:700;text-transform:uppercase;
-      letter-spacing:.07em;color:#9ca3af;margin-bottom:14px}
+    /* Search Form */
+    .search-card{background:#fff;border:1px solid var(--border);border-radius:12px;
+      padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+    .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+      gap:16px;margin-bottom:16px}
+    .form-group{display:flex;flex-direction:column;gap:6px}
+    .form-label{font-size:.8rem;font-weight:600;color:#374151}
+    .form-input,.form-select{padding:9px 12px;border:1px solid var(--border);
+      border-radius:8px;font-size:.9rem;outline:none;transition:border-color .15s;
+      background:#fff}
+    .form-input:focus,.form-select:focus{border-color:var(--purple)}
 
-    /* token row */
-    .token-row{display:flex;gap:8px;align-items:center}
-    .token-row input{flex:1;padding:9px 13px;border:1px solid var(--border);
-      border-radius:8px;font-size:.85rem;font-family:monospace;outline:none;
-      transition:border-color .15s}
-    .token-row input:focus{border-color:var(--purple)}
-    .badge{font-size:.72rem;padding:3px 10px;border-radius:20px;
-      white-space:nowrap;font-weight:500}
-    .badge-ok{background:#d1fae5;color:#065f46}
-    .badge-off{background:#f3f4f6;color:#9ca3af}
+    .checkbox-group{display:flex;gap:20px;flex-wrap:wrap;margin-top:10px}
+    .checkbox-label{display:flex;align-items:center;gap:6px;font-size:.85rem;
+      color:#374151;cursor:pointer;user-select:none}
+    .checkbox-label input[type="checkbox"]{cursor:pointer;width:16px;height:16px}
 
-    /* search */
-    .search-row{display:flex;gap:8px}
-    .search-row input{flex:1;padding:10px 14px;border:1px solid var(--border);
-      border-radius:8px;font-size:.95rem;outline:none;transition:border-color .15s}
-    .search-row input:focus{border-color:var(--purple)}
-
-    /* buttons */
+    .search-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
     button{padding:10px 20px;border:none;border-radius:8px;font-size:.875rem;
-      font-weight:600;cursor:pointer;transition:background .15s;line-height:1}
+      font-weight:600;cursor:pointer;transition:all .15s;line-height:1}
     button:disabled{opacity:.45;cursor:not-allowed}
     .btn-primary{background:var(--purple);color:#fff}
     .btn-primary:hover:not(:disabled){background:var(--purple-dark)}
-    .btn-success{background:var(--green);color:#fff}
-    .btn-success:hover:not(:disabled){background:var(--green-dark)}
-    .btn-ghost{background:#f3f4f6;color:#374151;padding:7px 13px;font-size:.8rem}
-    .btn-ghost:hover:not(:disabled){background:#e5e7eb}
-    .btn-remove{background:none;color:var(--red);padding:5px 9px;
-      font-size:1.1rem;line-height:1;border-radius:6px}
-    .btn-remove:hover{background:#fee2e2}
+    .btn-secondary{background:#f3f4f6;color:#374151}
+    .btn-secondary:hover:not(:disabled){background:#e5e7eb}
 
-    /* status */
+    /* Status */
     .status{padding:10px 14px;border-radius:8px;font-size:.85rem;
       margin-top:12px;display:none}
     .status.info{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;display:block}
     .status.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;display:block}
     .status.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca;display:block}
 
-    /* record meta */
-    .meta{display:grid;grid-template-columns:140px 1fr;gap:5px 12px;font-size:.85rem}
-    .meta-k{color:#9ca3af;font-weight:500}
-    .meta-v{color:#111827;word-break:break-all}
+    /* Results Grid */
+    .results-container{display:grid;gap:16px}
+    .result-card{background:#fff;border:1px solid var(--border);border-radius:12px;
+      padding:20px;display:grid;grid-template-columns:300px 1fr;gap:20px;
+      box-shadow:0 1px 3px rgba(0,0,0,.04);transition:box-shadow .15s}
+    .result-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
 
-    /* divider */
-    hr{border:none;border-top:1px solid var(--border);margin:18px 0}
+    /* Image Viewer */
+    .image-panel{position:relative;background:#f9fafb;border:1px solid var(--border);
+      border-radius:8px;overflow:hidden;height:280px}
+    .image-viewer{width:100%;height:100%;cursor:move;overflow:hidden;position:relative}
+    .image-viewer img{display:block;transform-origin:0 0;transition:none;
+      position:absolute;top:0;left:0}
+    .image-placeholder{display:flex;align-items:center;justify-content:center;
+      height:100%;color:#9ca3af;font-size:.9rem}
+    .zoom-controls{position:absolute;top:8px;right:8px;display:flex;gap:4px;
+      background:rgba(255,255,255,.95);padding:4px;border-radius:6px;
+      box-shadow:0 2px 8px rgba(0,0,0,.15)}
+    .zoom-btn{width:28px;height:28px;border:none;border-radius:4px;
+      background:#f3f4f6;color:#374151;cursor:pointer;font-size:1.1rem;
+      font-weight:600;line-height:1;display:flex;align-items:center;
+      justify-content:center;transition:background .15s}
+    .zoom-btn:hover{background:#e5e7eb}
 
-    .section-title{font-size:.8rem;font-weight:600;color:#374151;margin-bottom:10px}
+    /* Result Info */
+    .result-info{display:flex;flex-direction:column;gap:12px}
+    .result-header{display:flex;justify-content:space-between;align-items:start;gap:12px}
+    .result-name{font-size:1.15rem;font-weight:700;color:#111}
+    .result-name a{color:var(--blue);text-decoration:none}
+    .result-name a:hover{text-decoration:underline}
+    .result-type{display:inline-block;padding:4px 10px;border-radius:6px;
+      background:#e0e7ff;color:#4338ca;font-size:.75rem;font-weight:600}
 
-    /* entry rows */
-    .entries{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
-    .entry-row{display:flex;align-items:center;gap:8px}
-    .entry-row input{flex:1;padding:8px 12px;border:1px solid var(--border);
-      border-radius:8px;font-size:.9rem;outline:none;transition:border-color .15s}
-    .entry-row input:focus{border-color:var(--purple)}
+    .info-grid{display:grid;grid-template-columns:140px 1fr;gap:8px 12px;
+      font-size:.85rem;padding:12px;background:#f9fafb;border-radius:8px}
+    .info-label{color:#6b7280;font-weight:500}
+    .info-value{color:#111827;word-break:break-word}
+    .info-value a{color:var(--blue);text-decoration:none}
+    .info-value a:hover{text-decoration:underline}
 
-    /* two-col summary */
-    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    @media(max-width:520px){.two-col{grid-template-columns:1fr}}
-    .summary-box{background:#f9fafb;border:1px solid var(--border);
-      border-radius:8px;padding:14px 16px}
-    .summary-box .lbl{font-size:.72rem;color:#9ca3af;margin-bottom:5px;font-weight:500}
-    .summary-box .big{font-size:1.6rem;font-weight:700;color:var(--purple);line-height:1.2}
-    .summary-box .sub{font-size:.72rem;color:#9ca3af;margin-top:3px}
-    .exp-list{list-style:none;padding:0;margin-top:5px}
-    .exp-list li{padding:3px 0;border-bottom:1px solid #f3f4f6;
-      font-family:monospace;font-size:.82rem;color:#374151}
-    .exp-list li:last-child{border-bottom:none}
+    .disease-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+    .disease-tag{padding:4px 10px;border-radius:6px;background:#fef3c7;
+      color:#92400e;font-size:.75rem;font-weight:500}
 
-    /* description preview */
-    .desc-box{background:#f9fafb;border:1px solid var(--border);border-radius:8px;
-      padding:12px 14px;font-size:.8rem;color:#374151;white-space:pre-wrap;
-      max-height:150px;overflow-y:auto;font-family:monospace}
-
-    .save-row{display:flex;justify-content:flex-end;margin-top:16px}
     .hidden{display:none!important}
+    .loading{opacity:.6;pointer-events:none}
 
-    /* help text */
-    .help{font-size:.78rem;color:var(--gray);margin-top:6px}
-    .help a{color:var(--purple);text-decoration:none}
-    .help a:hover{text-decoration:underline}
+    /* Help text */
+    .help-text{font-size:.8rem;color:var(--gray);margin-top:8px;
+      padding:10px;background:#f9fafb;border-radius:6px}
   </style>
 </head>
 <body>
-<div class="page">
+<div class="container">
 
+  <!-- Header -->
   <div class="header">
-    <h1>Spatial Biology Editor</h1>
-    <p>Search a biospecimen in Aliquot and append spatial biology data to its description.</p>
+    <div>
+      <h1>Enhanced Aliquot Search</h1>
+    </div>
     <div class="user-badge" id="userBadge" style="display:none">
-      <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
       <span id="userEmail">—</span>
     </div>
   </div>
 
-  <!-- ② Search -->
-  <div class="card">
-    <div class="card-label">Biospecimen Lookup</div>
-    <div class="search-row">
-      <input type="text" id="searchInput" placeholder="Enter biospecimen name (e.g. 24-15515-LU-5)…"/>
-      <button class="btn-primary" id="searchBtn" onclick="doSearch()">Search</button>
+  <!-- Authentication Section (Always Visible) -->
+  <div class="search-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-size:.9rem;font-weight:600;color:#374151">🔐 Authentication</div>
+      <div class="user-badge" id="userBadgeTop" style="display:none;margin:0">
+        <span id="userEmailTop">—</span>
+      </div>
     </div>
+    <p style="font-size:.85rem;color:#6b7280;margin-bottom:12px">
+      Paste your CF_Authorization token from
+      <a href="https://aliquot.txgmesh.net" target="_blank" style="color:#6366f1">aliquot.txgmesh.net</a>
+      (DevTools → Application → Cookies → CF_Authorization)
+    </p>
+    <div style="display:flex;gap:8px">
+      <input type="password" id="cfTokenInput" placeholder="Paste CF_Authorization token here..."
+             style="flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.85rem;font-family:monospace">
+      <button class="btn-primary" onclick="saveCFToken()">Set Token</button>
+    </div>
+    <div class="status" id="authStatus"></div>
+  </div>
+
+  <!-- Search Form -->
+  <div class="search-card">
+    <form id="searchForm" onsubmit="doSearch(event)">
+      <div class="form-grid">
+        <!-- Biospecimen ID/Name -->
+        <div class="form-group">
+          <label class="form-label" for="specimenName">Biospecimen ID / Name</label>
+          <input type="text" id="specimenName" class="form-input"
+                 placeholder="e.g. 24-15515-LU-5">
+        </div>
+
+        <!-- Biospecimen Type -->
+        <div class="form-group">
+          <label class="form-label" for="bioSpecimenType">Biospecimen Type</label>
+          <select id="bioSpecimenType" class="form-select">
+            <option value="">All Types</option>
+            <option value="FFPE_BLOCK">FFPE Block</option>
+            <option value="FROZEN_OCT_BLOCK">Frozen OCT Block</option>
+            <option value="TISSUE_MICROARRAY">Tissue Microarray</option>
+          </select>
+        </div>
+
+        <!-- Tissue Type -->
+        <div class="form-group">
+          <label class="form-label" for="tissueType">Tissue Type</label>
+          <input type="text" id="tissueType" class="form-input"
+                 placeholder="e.g. lung, brain">
+        </div>
+
+        <!-- Disease Type -->
+        <div class="form-group">
+          <label class="form-label" for="diseaseType">Disease Type</label>
+          <input type="text" id="diseaseType" class="form-input"
+                 placeholder="e.g. cancer, normal">
+        </div>
+      </div>
+
+      <!-- Checkboxes -->
+      <div class="form-group">
+        <label class="form-label">Include Only (optional filters)</label>
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="hasInventoryLocations">
+            <span>Has Inventory Locations</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="hasImageLinks">
+            <span>Has Image Links</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="hasExperiments">
+            <span>Has Experiments</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="search-actions">
+        <button type="button" class="btn-secondary" onclick="clearForm()">Clear</button>
+        <button type="submit" class="btn-primary" id="searchBtn">Search</button>
+      </div>
+    </form>
+
     <div class="status" id="searchStatus"></div>
   </div>
 
-  <!-- ③ Record -->
-  <div class="card hidden" id="recordCard">
-    <div class="card-label">Record</div>
-    <div class="meta" id="metaGrid"></div>
-    <hr>
-    <div class="section-title">Current Description</div>
-    <div class="desc-box" id="currentDesc"></div>
-  </div>
+  <!-- Results -->
+  <div id="resultsContainer" class="results-container hidden"></div>
 
-  <!-- ④ Spatial Biology Form -->
-  <div class="card hidden" id="formCard">
-    <div class="card-label">Spatial Biology Data</div>
-    <div class="two-col">
-
-      <!-- transcripts_per_cell -->
-      <div>
-        <div class="section-title">Transcripts per Cell</div>
-        <div class="entries" id="tcEntries"></div>
-        <button class="btn-ghost" onclick="addTC()">+ Add value</button>
-      </div>
-
-      <!-- experiment_id -->
-      <div>
-        <div class="section-title">Experiment ID</div>
-        <div class="entries" id="expEntries"></div>
-        <button class="btn-ghost" onclick="addExp()">+ Add ID</button>
-      </div>
-    </div>
-
-    <hr>
-
-    <!-- Live summary -->
-    <div class="section-title">Summary — will be saved to description</div>
-    <div class="two-col">
-      <div class="summary-box">
-        <div class="lbl">Avg Transcripts / Cell</div>
-        <div class="big" id="avgVal">—</div>
-        <div class="sub" id="avgSub"></div>
-      </div>
-      <div class="summary-box">
-        <div class="lbl">Experiment IDs</div>
-        <ul class="exp-list" id="expPreview">
-          <li style="color:#9ca3af">None added</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="save-row">
-      <button class="btn-success" id="saveBtn" onclick="doSave()">
-        Save to Description
-      </button>
-    </div>
-    <div class="status" id="saveStatus"></div>
-  </div>
-
-</div><!-- /page -->
+</div>
 
 <script>
 // ─── State ────────────────────────────────────────────────────────────────
-let record    = null;
 let userEmail = '';
-let userName  = '';
+let userName = '';
+let imageStates = {}; // Track pan/zoom state for each image
+let cfToken = localStorage.getItem('cf_token') || '';
+
+// ─── Authentication ───────────────────────────────────────────────────────
+function saveCFToken() {
+  const token = document.getElementById('cfTokenInput').value.trim();
+  if (!token) {
+    setStatus('authStatus', 'Please enter a token', 'err');
+    return;
+  }
+
+  cfToken = token;
+  localStorage.setItem('cf_token', token);
+
+  // Set as cookie for server-side auth
+  document.cookie = `CF_Authorization=${token}; path=/; SameSite=Lax`;
+
+  setStatus('authStatus', '✓ Token saved! Refreshing...', 'ok');
+  setTimeout(() => window.location.reload(), 1000);
+}
+
+async function checkAuth() {
+  // Check if we have CF token (from cookie or localStorage)
+  const hasCookieToken = document.cookie.includes('CF_Authorization=');
+  const hasLocalToken = !!cfToken;
+
+  if (!hasCookieToken && hasLocalToken) {
+    // Restore token to cookie
+    document.cookie = `CF_Authorization=${cfToken}; path=/; SameSite=Lax`;
+  }
+
+  try {
+    const res = await fetch('/api/whoami', { credentials: 'include' });
+    const { email, name, source } = await res.json();
+
+    if (email) {
+      setUser(email, name);
+      // Show authenticated status in the auth section
+      document.getElementById('userBadgeTop').style.display = 'inline-flex';
+      document.getElementById('userEmailTop').textContent = email;
+      setStatus('authStatus', `✓ Authenticated as ${email}`, 'ok');
+      return true;
+    }
+  } catch { /* continue */ }
+
+  return false;
+}
 
 // ─── Identity ─────────────────────────────────────────────────────────────
 function setUser(email, name) {
   userEmail = email || '';
-  userName  = name  || '';
+  userName = name || '';
   const badge = document.getElementById('userBadge');
   if (userEmail) {
     document.getElementById('userEmail').textContent = userName || userEmail;
@@ -211,195 +284,407 @@ function setUser(email, name) {
   }
 }
 
-async function autoDetectUser() {
-  try {
-    const res = await fetch('/api/whoami', { credentials: 'include' });
-    const { email, name } = await res.json();
-    setUser(email, name);
-  } catch { /* silent — badge stays hidden */ }
-}
-
-// On load
-window.addEventListener('DOMContentLoaded', async () => {
-  addTC(); addExp();
-  await autoDetectUser();
-});
+window.addEventListener('DOMContentLoaded', checkAuth);
 
 // ─── Search ───────────────────────────────────────────────────────────────
-async function doSearch() {
-  const q = document.getElementById('searchInput').value.trim();
-  if (!q) return setStatus('searchStatus', 'Enter a biospecimen name.', 'err');
+async function doSearch(event) {
+  event?.preventDefault();
+
+  const params = new URLSearchParams();
+
+  const name = document.getElementById('specimenName').value.trim();
+  if (name) params.append('q', name);
+
+  const type = document.getElementById('bioSpecimenType').value;
+  if (type) params.append('bioSpecimenType', type);
+
+  const tissue = document.getElementById('tissueType').value.trim();
+  if (tissue) params.append('tissueType', tissue);
+
+  const disease = document.getElementById('diseaseType').value.trim();
+  if (disease) params.append('diseaseType', disease);
+
+  if (document.getElementById('hasInventoryLocations').checked)
+    params.append('hasInventoryLocations', 'true');
+  if (document.getElementById('hasImageLinks').checked)
+    params.append('hasImageLinks', 'true');
+  if (document.getElementById('hasExperiments').checked)
+    params.append('hasExperiments', 'true');
 
   setStatus('searchStatus', 'Searching…', 'info');
   document.getElementById('searchBtn').disabled = true;
+  document.getElementById('resultsContainer').classList.add('hidden');
 
   try {
-    const res = await api(`/api/search?q=${encodeURIComponent(q)}`);
+    const url = `/api/search?${params.toString()}`;
+    const res = await fetch(url, { credentials: 'include' });
     const data = await res.json();
+
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    record = data;
-    renderRecord(data);
-    setStatus('searchStatus', `Loaded: ${data.name || data.id}`, 'ok');
+
+    let results = data.results || [];
+
+    // If "Has Image Links" is checked, filter by checking detail endpoint
+    if (document.getElementById('hasImageLinks').checked && results.length > 0) {
+      setStatus('searchStatus', `Checking which specimens have images...`, 'info');
+      results = await filterByImages(results);
+    }
+
+    // If "Has Inventory Locations" is checked, fetch detail data
+    if (document.getElementById('hasInventoryLocations').checked && results.length > 0) {
+      setStatus('searchStatus', `Fetching inventory locations...`, 'info');
+      results = await fetchInventoryLocations(results);
+    }
+
+    renderResults(results);
+    setStatus('searchStatus',
+      `Found ${results.length} biospecimen${results.length === 1 ? '' : 's'}`, 'ok');
   } catch(e) {
     setStatus('searchStatus', `Error: ${e.message}`, 'err');
+    document.getElementById('resultsContainer').classList.add('hidden');
   } finally {
     document.getElementById('searchBtn').disabled = false;
   }
 }
 
-function renderRecord(r) {
-  // Meta grid
-  const skip = new Set(['description','additionalProperties','diseaseType']);
-  let html = '';
-  for (const [k,v] of Object.entries(r)) {
-    if (skip.has(k) || typeof v === 'object') continue;
-    html += `<div class="meta-k">${k}</div><div class="meta-v">${v ?? '—'}</div>`;
-  }
-  document.getElementById('metaGrid').innerHTML = html;
-  document.getElementById('currentDesc').textContent = r.description || '(empty)';
-  show('recordCard'); show('formCard');
-  seedFromDesc(r.description || '');
+// ─── Fetch Inventory Locations ────────────────────────────────────────────
+async function fetchInventoryLocations(records) {
+  const promises = records.map(async (r) => {
+    try {
+      const res = await fetch(`/api/biospecimens/${r.id}`, { credentials: 'include' });
+      if (!res.ok) return r;
+
+      const detail = await res.json();
+
+      // Add inventoryLocations from detail endpoint
+      if (detail.inventoryLocations && detail.inventoryLocations.length > 0) {
+        r.inventoryLocations = detail.inventoryLocations;
+        return r;
+      }
+      return null; // Filter out if no inventory location
+    } catch (e) {
+      console.warn('Failed to fetch inventory for', r.name, e);
+      return null;
+    }
+  });
+
+  const results = await Promise.all(promises);
+  return results.filter(r => r !== null);
 }
 
-// ─── Seed existing spatial block ──────────────────────────────────────────
-function seedFromDesc(desc) {
-  clearEntries();
-  const m = desc.match(/\[Spatial Biology\]([\s\S]*?)\[\/Spatial Biology\]/);
-  if (!m) { addTC(); addExp(); return; }
-  const block = m[1];
+// ─── Filter by Images ─────────────────────────────────────────────────────
+async function filterByImages(records) {
+  const checks = records.map(async (r) => {
+    // Check if image exists in additionalProperties
+    if (r.additionalProperties && r.additionalProperties.Image) {
+      return r;
+    }
 
-  const tcMatch = block.match(/transcripts_per_cell:\s*([^\n]+)/);
-  if (tcMatch) {
-    tcMatch[1].split(',').map(s=>s.trim()).filter(Boolean).forEach(v=>addTC(v));
-  } else { addTC(); }
+    // If not in list response, check detail endpoint (parent might have it)
+    try {
+      const res = await fetch(`/api/biospecimens/${r.id}`, { credentials: 'include' });
+      if (!res.ok) return null;
 
-  const expMatch = [...block.matchAll(/experiment_id:\s*([^\n]+)/g)];
-  if (expMatch.length) expMatch.forEach(m=>addExp(m[1].trim()));
-  else addExp();
+      const detail = await res.json();
 
-  updateSummary();
+      // Check if this specimen or its parent has an image
+      const hasImage =
+        (detail.additionalProperties && detail.additionalProperties.Image) ||
+        (detail.parentBioSpecimen && detail.parentBioSpecimen.additionalProperties && detail.parentBioSpecimen.additionalProperties.Image);
+
+      if (hasImage) {
+        // Update record with image data
+        if (detail.parentBioSpecimen && detail.parentBioSpecimen.additionalProperties && detail.parentBioSpecimen.additionalProperties.Image) {
+          r.additionalProperties = r.additionalProperties || {};
+          r.additionalProperties.Image = detail.parentBioSpecimen.additionalProperties.Image;
+        }
+        return r;
+      }
+      return null;
+    } catch (e) {
+      console.warn('Failed to check image for', r.name, e);
+      return null;
+    }
+  });
+
+  const results = await Promise.all(checks);
+  return results.filter(r => r !== null);
 }
 
-// ─── Dynamic rows ─────────────────────────────────────────────────────────
-function clearEntries() {
-  document.getElementById('tcEntries').innerHTML = '';
-  document.getElementById('expEntries').innerHTML = '';
-}
+// ─── Render Results ───────────────────────────────────────────────────────
+function renderResults(results) {
+  const container = document.getElementById('resultsContainer');
 
-function addTC(val='') {
-  const row = document.createElement('div');
-  row.className = 'entry-row';
-  row.innerHTML = `
-    <input type="number" step="any" placeholder="e.g. 1250.5" value="${val}"
-           oninput="updateSummary()"/>
-    <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>`;
-  document.getElementById('tcEntries').appendChild(row);
-  updateSummary();
-}
-
-function addExp(val='') {
-  const row = document.createElement('div');
-  row.className = 'entry-row';
-  row.innerHTML = `
-    <input type="text" placeholder="e.g. EXP-2024-001" value="${val}"
-           oninput="updateSummary()"/>
-    <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>`;
-  document.getElementById('expEntries').appendChild(row);
-  updateSummary();
-}
-
-function removeRow(btn) { btn.closest('.entry-row').remove(); updateSummary(); }
-
-// ─── Live summary ─────────────────────────────────────────────────────────
-function updateSummary() {
-  const tcVals = [...document.querySelectorAll('#tcEntries input')]
-    .map(i=>parseFloat(i.value)).filter(v=>!isNaN(v));
-
-  if (!tcVals.length) {
-    document.getElementById('avgVal').textContent = '—';
-    document.getElementById('avgSub').textContent = '';
-  } else {
-    const avg = tcVals.reduce((a,b)=>a+b,0)/tcVals.length;
-    document.getElementById('avgVal').textContent = avg.toFixed(2);
-    document.getElementById('avgSub').textContent = tcVals.length > 1
-      ? `${tcVals.length} values: ${tcVals.map(v=>v.toFixed(2)).join(', ')}`
-      : '1 value';
+  if (!results.length) {
+    container.innerHTML = '<p style="text-align:center;color:#9ca3af;padding:40px">No results found</p>';
+    container.classList.remove('hidden');
+    return;
   }
 
-  const expVals = [...document.querySelectorAll('#expEntries input')]
-    .map(i=>i.value.trim()).filter(Boolean);
-  document.getElementById('expPreview').innerHTML = expVals.length
-    ? expVals.map(e=>`<li>${e}</li>`).join('')
-    : '<li style="color:#9ca3af">None added</li>';
+  imageStates = {};
+  container.innerHTML = results.map((r, idx) => {
+    const aliquotUrl = `https://aliquot.txgmesh.net/biospecimen/${r.id || r.name}`;
+    const heImage = findHEImage(r);
+    const diseases = extractDiseases(r);
+
+    return `
+      <div class="result-card">
+        <!-- Image Panel -->
+        <div class="image-panel">
+          ${heImage ? `
+            <div style="position:relative;width:100%;height:100%;background:#1a1a1a;border-radius:8px;overflow:hidden;">
+              <iframe
+                src="${heImage}"
+                style="width:100%;height:100%;border:none;"
+                title="H&E Image Viewer"
+                allow="fullscreen"
+                onload="this.style.opacity=1"
+                style="opacity:0;transition:opacity 0.3s;">
+              </iframe>
+              <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#9ca3af;pointer-events:none;">
+                <p style="font-size:0.875rem;margin-bottom:8px;">Loading Ziggy viewer...</p>
+                <p style="font-size:0.75rem;">If blank, <a href="${heImage}" target="_blank" style="color:#6366f1;pointer-events:auto;">open in new tab</a></p>
+              </div>
+              <a href="${heImage}" target="_blank"
+                 style="position:absolute;bottom:8px;right:8px;background:rgba(255,255,255,0.95);border-radius:6px;padding:8px;box-shadow:0 2px 8px rgba(0,0,0,0.15);text-decoration:none;color:#374151;font-size:0.75rem;font-weight:600;z-index:10;">
+                Open Full Screen ↗
+              </a>
+            </div>
+          ` : `
+            <div class="image-placeholder">No H&E image available</div>
+          `}
+        </div>
+
+        <!-- Info Panel -->
+        <div class="result-info">
+          <div class="result-header">
+            <div>
+              <div class="result-name">
+                <a href="${aliquotUrl}" target="_blank">${r.name || r.id}</a>
+              </div>
+              ${diseases.length ? `
+                <div class="disease-tags">
+                  ${diseases.map(d => `<span class="disease-tag">${d}</span>`).join('')}
+                </div>
+              ` : ''}
+            </div>
+            ${r.bioSpecimenType ? `
+              <span class="result-type">${formatType(r.bioSpecimenType)}</span>
+            ` : ''}
+          </div>
+
+          <div class="info-grid">
+            ${r.tissueTypes?.length ? `
+              <div class="info-label">Tissue Type</div>
+              <div class="info-value">${r.tissueTypes.map(t => t.name).join(', ')}</div>
+            ` : ''}
+            ${r.primaryDiagnosis ? `
+              <div class="info-label">Primary Diagnosis</div>
+              <div class="info-value">${r.primaryDiagnosis}</div>
+            ` : ''}
+            ${r.diseaseType?.name ? `
+              <div class="info-label">Disease Type</div>
+              <div class="info-value">${r.diseaseType.name}</div>
+            ` : ''}
+            ${r.inventoryLocations?.length ? `
+              <div class="info-label">Inventory Location</div>
+              <div class="info-value" style="color:#059669;font-weight:600;">${r.inventoryLocations.join(', ')}</div>
+            ` : ''}
+            ${r.experiments?.length ? `
+              <div class="info-label">Experiments</div>
+              <div class="info-value">${r.experiments.length} experiment(s)</div>
+            ` : ''}
+            <div class="info-label">Specimen ID</div>
+            <div class="info-value" style="font-family:monospace;font-size:0.8rem;color:#6b7280;">${r.id}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.classList.remove('hidden');
+
+  // Initialize image states
+  results.forEach((r, idx) => {
+    if (findHEImage(r)) {
+      initImageState(idx);
+    }
+  });
 }
 
-// ─── Save ─────────────────────────────────────────────────────────────────
-async function doSave() {
-  if (!record) return;
+// ─── Image Viewer ─────────────────────────────────────────────────────────
+function initImageState(idx) {
+  const img = document.getElementById(`img-${idx}`);
+  if (!img) return;
 
-  const tcVals = [...document.querySelectorAll('#tcEntries input')]
-    .map(i=>parseFloat(i.value)).filter(v=>!isNaN(v));
-  const expVals = [...document.querySelectorAll('#expEntries input')]
-    .map(i=>i.value.trim()).filter(Boolean);
+  img.onload = () => {
+    const viewer = document.getElementById(`viewer-${idx}`);
+    const scale = Math.min(
+      viewer.clientWidth / img.naturalWidth,
+      viewer.clientHeight / img.naturalHeight,
+      1
+    );
 
-  if (!tcVals.length && !expVals.length)
-    return setStatus('saveStatus', 'Add at least one value before saving.', 'err');
+    imageStates[idx] = {
+      scale: scale,
+      x: 0,
+      y: 0,
+      isDragging: false,
+      startX: 0,
+      startY: 0
+    };
+    updateTransform(idx);
+  };
+}
 
-  // Build the [Spatial Biology] block
-  const avg = tcVals.length
-    ? (tcVals.reduce((a,b)=>a+b,0)/tcVals.length).toFixed(2) : null;
-  const now = new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC';
-
-  let block = '[Spatial Biology]\n';
-  if (avg !== null) {
-    block += `transcripts_per_cell: ${avg}\n`;
-    if (tcVals.length > 1)
-      block += `  (individual values: ${tcVals.map(v=>v.toFixed(2)).join(', ')})\n`;
+function updateTransform(idx) {
+  const state = imageStates[idx];
+  const img = document.getElementById(`img-${idx}`);
+  if (img && state) {
+    img.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
   }
-  if (expVals.length)
-    block += expVals.map(e=>`experiment_id: ${e}`).join('\n') + '\n';
-  block += `updated_by: ${userEmail || 'unknown'}\n`;
-  block += `updated_at: ${now}\n`;
-  block += '[/Spatial Biology]';
+}
 
-  // Strip old block from description, append new
-  const base = (record.description || '')
-    .replace(/\n*\[Spatial Biology\][\s\S]*?\[\/Spatial Biology\]\n*/g, '').trimEnd();
-  const newDesc = base ? `${base}\n\n${block}` : block;
+function startPan(event, idx) {
+  event.preventDefault();
+  const state = imageStates[idx];
+  if (!state) return;
 
-  document.getElementById('saveBtn').disabled = true;
-  setStatus('saveStatus', 'Saving…', 'info');
+  state.isDragging = true;
+  state.startX = event.clientX - state.x;
+  state.startY = event.clientY - state.y;
 
-  try {
-    const res = await api(`/api/biospecimens/${encodeURIComponent(record.id)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        record,
-        description: newDesc,
-        transcripts_per_cell: tcVals,
-        experiment_ids: expVals,
-        updated_by: userEmail || 'unknown',
-        updated_at: now,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  const viewer = document.getElementById(`viewer-${idx}`);
 
-    record.description = newDesc;
-    document.getElementById('currentDesc').textContent = newDesc;
-    setStatus('saveStatus', '✓ Description saved successfully.', 'ok');
-  } catch(e) {
-    setStatus('saveStatus', `Save failed: ${e.message}`, 'err');
-  } finally {
-    document.getElementById('saveBtn').disabled = false;
+  function onMove(e) {
+    if (!state.isDragging) return;
+    state.x = e.clientX - state.startX;
+    state.y = e.clientY - state.startY;
+    updateTransform(idx);
   }
+
+  function onUp() {
+    state.isDragging = false;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function handleWheel(event, idx) {
+  event.preventDefault();
+  const state = imageStates[idx];
+  if (!state) return;
+
+  const delta = event.deltaY > 0 ? 1/1.1 : 1.1;
+  const viewer = document.getElementById(`viewer-${idx}`);
+  const rect = viewer.getBoundingClientRect();
+  const mouseX = event.clientX - rect.left;
+  const mouseY = event.clientY - rect.top;
+
+  // Zoom towards mouse position
+  const oldScale = state.scale;
+  state.scale *= delta;
+  state.scale = Math.max(0.1, Math.min(state.scale, 5));
+
+  const scaleChange = state.scale / oldScale;
+  state.x = mouseX - (mouseX - state.x) * scaleChange;
+  state.y = mouseY - (mouseY - state.y) * scaleChange;
+
+  updateTransform(idx);
+}
+
+function zoom(idx, factor) {
+  const state = imageStates[idx];
+  if (!state) return;
+
+  const viewer = document.getElementById(`viewer-${idx}`);
+  const centerX = viewer.clientWidth / 2;
+  const centerY = viewer.clientHeight / 2;
+
+  const oldScale = state.scale;
+  state.scale *= factor;
+  state.scale = Math.max(0.1, Math.min(state.scale, 5));
+
+  const scaleChange = state.scale / oldScale;
+  state.x = centerX - (centerX - state.x) * scaleChange;
+  state.y = centerY - (centerY - state.y) * scaleChange;
+
+  updateTransform(idx);
+}
+
+function resetZoom(idx) {
+  const state = imageStates[idx];
+  const img = document.getElementById(`img-${idx}`);
+  const viewer = document.getElementById(`viewer-${idx}`);
+  if (!state || !img || !viewer) return;
+
+  const scale = Math.min(
+    viewer.clientWidth / img.naturalWidth,
+    viewer.clientHeight / img.naturalHeight,
+    1
+  );
+
+  state.scale = scale;
+  state.x = 0;
+  state.y = 0;
+  updateTransform(idx);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
-function api(path, opts={}) {
-  // credentials:'include' sends the CF_Authorization cookie automatically
-  return fetch(path, { credentials: 'include', ...opts });
+function findHEImage(record) {
+  // Check additionalProperties.Image first (primary location)
+  if (record.additionalProperties && record.additionalProperties.Image) {
+    return record.additionalProperties.Image;
+  }
+
+  // Fallback to imageLinks array if it exists
+  const imageLinks = record.imageLinks;
+  if (!imageLinks || !Array.isArray(imageLinks)) return null;
+
+  // Look for H&E image in the image category
+  const heImage = imageLinks.find(img =>
+    img.category === 'image' &&
+    (img.description?.toLowerCase().includes('h&e') ||
+     img.description?.toLowerCase().includes('he '))
+  );
+
+  if (heImage) return heImage.url || heImage.link;
+
+  // Fallback to first image in 'image' category
+  const firstImage = imageLinks.find(img => img.category === 'image');
+  return firstImage ? (firstImage.url || firstImage.link) : null;
+}
+
+function extractDiseases(record) {
+  const diseases = [];
+  if (record.diseaseType) {
+    if (Array.isArray(record.diseaseType)) {
+      diseases.push(...record.diseaseType.map(d => typeof d === 'string' ? d : d.name));
+    } else if (typeof record.diseaseType === 'string') {
+      diseases.push(record.diseaseType);
+    } else if (record.diseaseType.name) {
+      diseases.push(record.diseaseType.name);
+    }
+  }
+  if (record.primaryDiagnosis && !diseases.includes(record.primaryDiagnosis)) {
+    diseases.push(record.primaryDiagnosis);
+  }
+  return diseases.filter(Boolean).slice(0, 3); // Limit to 3 tags
+}
+
+function formatType(type) {
+  return type.replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function clearForm() {
+  document.getElementById('searchForm').reset();
+  document.getElementById('resultsContainer').classList.add('hidden');
+  setStatus('searchStatus', '', '');
 }
 
 function setStatus(id, msg, type) {
@@ -407,14 +692,6 @@ function setStatus(id, msg, type) {
   el.textContent = msg;
   el.className = `status ${type}`;
 }
-
-function show(id) { document.getElementById(id).classList.remove('hidden'); }
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('searchInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doSearch();
-  });
-});
 </script>
 </body>
 </html>
