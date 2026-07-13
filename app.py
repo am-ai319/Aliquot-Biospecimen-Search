@@ -134,14 +134,21 @@ def do_put_formdata(url: str, record: dict, cf_token: str):
 
 
 def get_cf_token() -> str:
-    """Read the CF_Authorization cookie set automatically by Cloudflare Access."""
+    """Read CF token from header, cookie, or env fallback."""
+    # 1. Prefer explicit header sent by the browser JS
+    token = request.headers.get("X-CF-Token", "").strip()
+    if token:
+        return token
+
+    # 2. Cookie set by browser JS
     token = request.cookies.get("CF_Authorization", "").strip()
+    if token:
+        return token
 
-    # Fallback to hardcoded token for localhost testing
-    if not token:
-        token = os.environ.get("DEV_CF_TOKEN", "")
-        print(f"Using DEV_CF_TOKEN: {token[:50]}..." if token else "No DEV_CF_TOKEN found")
-
+    # 3. Local dev fallback
+    token = os.environ.get("DEV_CF_TOKEN", "")
+    if token:
+        print(f"Using DEV_CF_TOKEN: {token[:50]}...")
     return token
 
 
@@ -526,6 +533,18 @@ def get_specimen(specimen_id):
 
     print(f"  ← {status} OK")
     return jsonify(data), 200
+
+
+@app.route("/api/biospecimens/<specimen_id>/debug", methods=["GET"])
+def debug_specimen(specimen_id):
+    """Show all top-level keys in a biospecimen detail response."""
+    cf_token = get_cf_token()
+    url = f"{ALIQUOT_BASE}/{urllib.parse.quote(specimen_id)}"
+    data, status, err = do_get(url, cf_token)
+    if err:
+        return jsonify(err), status
+    summary = {k: (v if not isinstance(v, (dict, list)) else f"[{type(v).__name__} len={len(v)}]") for k, v in data.items()}
+    return jsonify(summary), 200
 
 
 @app.route("/api/biospecimens/<specimen_id>", methods=["PUT"])

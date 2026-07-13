@@ -317,7 +317,7 @@ async function doSearch(event) {
 
   try {
     const url = `/api/search?${params.toString()}`;
-    const res = await fetch(url, { credentials: 'include' });
+    const res = await fetch(url, { credentials: 'include', headers: cfToken ? { 'X-CF-Token': cfToken } : {} });
     const data = await res.json();
 
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -351,7 +351,7 @@ async function doSearch(event) {
 async function fetchInventoryLocations(records) {
   const promises = records.map(async (r) => {
     try {
-      const res = await fetch(`/api/biospecimens/${r.id}`, { credentials: 'include' });
+      const res = await fetch(`/api/biospecimens/${r.id}`, { credentials: 'include', headers: cfToken ? { 'X-CF-Token': cfToken } : {} });
       if (!res.ok) return r;
 
       const detail = await res.json();
@@ -382,7 +382,7 @@ async function filterByImages(records) {
 
     // If not in list response, check detail endpoint (parent might have it)
     try {
-      const res = await fetch(`/api/biospecimens/${r.id}`, { credentials: 'include' });
+      const res = await fetch(`/api/biospecimens/${r.id}`, { credentials: 'include', headers: cfToken ? { 'X-CF-Token': cfToken } : {} });
       if (!res.ok) return null;
 
       const detail = await res.json();
