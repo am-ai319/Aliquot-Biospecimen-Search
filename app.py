@@ -535,6 +535,24 @@ def get_specimen(specimen_id):
     return jsonify(data), 200
 
 
+@app.route("/api/biospecimens/<specimen_id>/inventory", methods=["GET"])
+def get_specimen_inventory(specimen_id):
+    """
+    Fetch inventory locations for a biospecimen using the dedicated inventory endpoint.
+    """
+    cf_token = get_cf_token()
+    url = f"{ALIQUOT_BASE}/{urllib.parse.quote(specimen_id)}/inventory"
+    print(f"GET → {url}")
+
+    data, status, err = do_get(url, cf_token)
+    if err:
+        print(f"  ← {status} {err}")
+        return jsonify(err), status
+
+    print(f"  ← {status} OK")
+    return jsonify(data), 200
+
+
 @app.route("/api/biospecimens/<specimen_id>/debug", methods=["GET"])
 def debug_specimen(specimen_id):
     """Show all top-level keys in a biospecimen detail response."""

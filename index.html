@@ -330,11 +330,12 @@ async function doSearch(event) {
       results = await filterByImages(results);
     }
 
-    // If "Has Inventory Locations" is checked, fetch detail data
-    if (document.getElementById('hasInventoryLocations').checked && results.length > 0) {
-      setStatus('searchStatus', `Fetching inventory locations...`, 'info');
-      results = await fetchInventoryLocations(results);
-    }
+    // Filter out inactive specimens
+    results = results.filter(r => r.status !== 'INACTIVE');
+
+    // Always fetch inventory locations for every result
+    setStatus('searchStatus', `Fetching inventory locations for ${results.length} result(s)…`, 'info');
+    results = await fetchInventoryLocations(results);
 
     renderResults(results);
     setStatus('searchStatus',
@@ -351,25 +352,24 @@ async function doSearch(event) {
 async function fetchInventoryLocations(records) {
   const promises = records.map(async (r) => {
     try {
-      const res = await fetch(`/api/biospecimens/${r.id}`, { credentials: 'include', headers: cfToken ? { 'X-CF-Token': cfToken } : {} });
-      if (!res.ok) return r;
-
-      const detail = await res.json();
-
-      // Add inventoryLocations from detail endpoint
-      if (detail.inventoryLocations && detail.inventoryLocations.length > 0) {
-        r.inventoryLocations = detail.inventoryLocations;
-        return r;
-      }
-      return null; // Filter out if no inventory location
+      const res = await fetch(`/api/biospecimens/${r.id}/inventory`, {
+        credentials: 'include',
+        headers: cfToken ? { 'X-CF-Token': cfToken } : {}
+      });
+      const inv = res.ok ? await res.json() : null;
+      console.log(`Inventory for ${r.name}:`, JSON.stringify(inv));
+      const locations = Array.isArray(inv) ? inv : (inv?.data || []);
+      // Only keep locations that have boxHierarchy.boxName or boxHierarchy.rackName
+      r.inventoryLocations = locations.filter(loc => loc.boxHierarchy?.boxName || loc.boxHierarchy?.rackName);
     } catch (e) {
       console.warn('Failed to fetch inventory for', r.name, e);
-      return null;
+      r.inventoryLocations = [];
     }
+    return r;
   });
 
   const results = await Promise.all(promises);
-  return results.filter(r => r !== null);
+  return results.filter(r => r.inventoryLocations.length > 0);
 }
 
 // ─── Filter by Images ─────────────────────────────────────────────────────
@@ -486,10 +486,8 @@ function renderResults(results) {
               <div class="info-label">Disease Type</div>
               <div class="info-value">${r.diseaseType.name}</div>
             ` : ''}
-            ${r.inventoryLocations?.length ? `
-              <div class="info-label">Inventory Location</div>
-              <div class="info-value" style="color:#059669;font-weight:600;">${r.inventoryLocations.join(', ')}</div>
-            ` : ''}
+            <div class="info-label">Inventory Location</div>
+            <div class="info-value">${formatInventory(r.inventoryLocations)}</div>
             ${r.experiments?.length ? `
               <div class="info-label">Experiments</div>
               <div class="info-value">${r.experiments.length} experiment(s)</div>
@@ -656,6 +654,22 @@ function findHEImage(record) {
   // Fallback to first image in 'image' category
   const firstImage = imageLinks.find(img => img.category === 'image');
   return firstImage ? (firstImage.url || firstImage.link) : null;
+}
+
+function formatInventory(locations) {
+  if (!locations || locations.length === 0)
+    return '<span style="color:#9ca3af">Not in inventory</span>';
+
+  return locations.map(loc => {
+    if (typeof loc === 'string') return `<span style="color:#059669;font-weight:600">${loc}</span>`;
+    const h = loc.boxHierarchy || {};
+    const parts = [];
+    if (h.rackName) parts.push(`Drawer: <strong>${h.rackName}</strong>`);
+    if (h.boxName)  parts.push(`Column: <strong>${h.boxName}</strong>`);
+    return parts.length
+      ? `<span style="color:#059669">${parts.join(' &nbsp;·&nbsp; ')}</span>`
+      : `<span style="color:#9ca3af">—</span>`;
+  }).join('<br>');
 }
 
 function extractDiseases(record) {
