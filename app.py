@@ -372,6 +372,15 @@ def whoami():
     return jsonify({"email": "", "source": "none"}), 200
 
 
+@app.route("/api/tissuetypes")
+def tissue_types():
+    cf_token = get_cf_token()
+    data, status, err = do_get("https://aliquot.txgmesh.net/api/tissuetypes", cf_token)
+    if err:
+        return jsonify(err), status
+    return jsonify(data), 200
+
+
 @app.route("/api/search")
 def search():
     """
