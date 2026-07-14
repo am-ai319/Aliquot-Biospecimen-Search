@@ -9,21 +9,13 @@ A web tool for searching biospecimens in [Aliquot](https://aliquot.txgmesh.net) 
 - Only shows specimens that are physically in inventory
 - Displays **Drawer** and **Column** location for each result
 - Displays H&E images inline where available
-- **Add spatial biology data** to a result: click **🧬 Add Spatial Biology Data** on any result card to open an editor that:
-  - Loads the full record and shows the current `description` and raw `experiments` field for reference
-  - Lets you enter one or more **transcripts/cell** values (averaged automatically) and one or more **experiment IDs**
-  - Writes the average transcripts/cell and the experiment ID list into the biospecimen's `description`
-  - Merges new experiment IDs into the existing `experiments` field, matching whatever shape (plain strings or objects) that field already uses on the record — if the record has no existing entries to infer a shape from, it falls back to plain ID strings and flags this in the preview
-  - Requires a **Preview Changes** step before **Confirm & Save** so you can check the exact `description` and `experiments` payload before anything is written to Aliquot
 
 ## APIs used
 
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/biospecimens?searchQuery=<q>` | Search biospecimens by name, tissue, or disease |
-| `GET /api/biospecimens/{uuid}` | Fetch the full record (used by the spatial biology editor) |
 | `GET /api/biospecimens/{uuid}/inventory` | Fetch inventory location (Drawer / Column) |
-| `PUT /api/biospecimens/{uuid}` | Save `description`, `experiments`, and structured spatial biology notes back to Aliquot |
 | `GET /api/tissuetypes` | Load active tissue types for the dropdown |
 | `GET /api/diseasetypes` | Load active disease types for the dropdown |
 
