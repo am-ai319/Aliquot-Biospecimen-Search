@@ -377,9 +377,11 @@ async function doSearch(event) {
     // Filter out inactive specimens
     results = results.filter(r => r.status !== 'INACTIVE');
 
-    // Always fetch inventory locations for every result
-    setStatus('searchStatus', `Fetching inventory locations for ${results.length} result(s)…`, 'info');
-    results = await fetchInventoryLocations(results);
+    // Only fetch inventory if checkbox is checked
+    if (document.getElementById('hasInventoryLocations').checked && results.length > 0) {
+      setStatus('searchStatus', `Fetching inventory locations for ${results.length} result(s)…`, 'info');
+      results = await fetchInventoryLocations(results);
+    }
 
     renderResults(results);
     setStatus('searchStatus',
