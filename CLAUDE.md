@@ -77,3 +77,12 @@ cd "/Users/areeb.mallick/Downloads/Claude Code Tests"
 git push origin main   # Railway auto-deploys from GitHub
 ```
 Once deployed, the public URL is the shareable link for the team.
+
+**GitHub repo:** https://github.com/am-ai319/Aliquot-Biospecimen-Search
+
+**Auto-sync rule:** After every code change to this tool (app.py, index.html, or any related file), always:
+1. Update README.md if the change affects features, APIs, or usage
+2. Commit all changed files with a clear message
+3. Push to `origin main`
+
+Do this automatically at the end of every session where code was modified — do not wait for the user to ask.
