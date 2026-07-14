@@ -17,6 +17,7 @@ A web tool for searching biospecimens in [Aliquot](https://aliquot.txgmesh.net) 
 | `GET /api/biospecimens?searchQuery=<q>` | Search biospecimens by name, tissue, or disease |
 | `GET /api/biospecimens/{uuid}/inventory` | Fetch inventory location (Drawer / Column) |
 | `GET /api/tissuetypes` | Load active tissue types for the dropdown |
+| `GET /api/diseasetypes` | Load active disease types for the dropdown |
 
 ## Running locally
 

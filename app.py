@@ -381,6 +381,15 @@ def tissue_types():
     return jsonify(data), 200
 
 
+@app.route("/api/diseasetypes")
+def disease_types():
+    cf_token = get_cf_token()
+    data, status, err = do_get("https://aliquot.txgmesh.net/api/diseasetypes", cf_token)
+    if err:
+        return jsonify(err), status
+    return jsonify(data), 200
+
+
 @app.route("/api/search")
 def search():
     """

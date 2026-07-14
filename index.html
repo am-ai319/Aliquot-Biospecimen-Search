@@ -181,8 +181,9 @@
         <!-- Disease Type -->
         <div class="form-group">
           <label class="form-label" for="diseaseType">Disease Type</label>
-          <input type="text" id="diseaseType" class="form-input"
-                 placeholder="e.g. cancer, normal">
+          <select id="diseaseType" class="form-select">
+            <option value="">All Disease Types</option>
+          </select>
         </div>
       </div>
 
@@ -288,7 +289,26 @@ function setUser(email, name) {
 window.addEventListener('DOMContentLoaded', () => {
   checkAuth();
   loadTissueTypes();
+  loadDiseaseTypes();
 });
+
+async function loadDiseaseTypes() {
+  try {
+    const res = await fetch('/api/diseasetypes', { credentials: 'include', headers: cfToken ? { 'X-CF-Token': cfToken } : {} });
+    const data = await res.json();
+    const types = Array.isArray(data) ? data : (data.data || []);
+    const active = types.filter(t => t.status === 'ACTIVE').sort((a, b) => a.name.localeCompare(b.name));
+    const select = document.getElementById('diseaseType');
+    active.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.name;
+      opt.textContent = t.name;
+      select.appendChild(opt);
+    });
+  } catch (e) {
+    console.warn('Failed to load disease types:', e);
+  }
+}
 
 async function loadTissueTypes() {
   try {
