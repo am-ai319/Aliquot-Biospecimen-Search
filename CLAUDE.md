@@ -45,9 +45,9 @@ A dedicated virtual environment is set up at `.venv/` for all data analysis, plo
 
 Always import from the venv; do not use the system `/usr/bin/python3`.
 
-## Spatial Biology Tool (Aliquot)
+## Aliquot Biospecimen Search Tool
 
-A web tool for adding spatial biology data to Aliquot biospecimen records.
+A web tool for searching Aliquot biospecimen records and viewing inventory locations. This is search-only — it does not write spatial biology data back to Aliquot. For that, see the separate project below.
 
 **Run locally:**
 ```bash
@@ -85,3 +85,13 @@ Once deployed, the public URL is the shareable link for the team.
 3. Push to `origin main`
 
 Do this automatically at the end of every session where code was modified — do not wait for the user to ask.
+
+## Aliquot Biospecimen Spatial Biology Integration (separate project)
+
+A **different**, standalone tool that lets users attach spatial biology data (transcripts/cell, experiment IDs) to Aliquot biospecimen records. This lives in its own directory and its own GitHub repo — **not** in this repo.
+
+- Local directory: `/Users/areeb.mallick/Downloads/Aliquot Biospecimen Spatial Biology Integration`
+- GitHub repo: https://github.com/am-ai319/Aliquot-Biospecimen-Spatial-Biology-Integration
+- Runs locally at http://localhost:8090 (not 8080, to avoid colliding with this search tool)
+
+Any work involving adding/editing spatial biology data on biospecimens belongs in that project's directory, not this one. See that project's own `CLAUDE.md` for its run/deploy instructions.
