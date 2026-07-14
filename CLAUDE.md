@@ -65,11 +65,10 @@ open http://localhost:8080
 When the user says anything like "open the spatial biology tool", "launch aliquot tool", or "open the biospecimen editor", run the two commands above (start the server then open the browser).
 
 **What it does:**
-- Search biospecimens by name in Aliquot
-- Enter `transcripts_per_cell` values (averages multiple inputs automatically)
-- Enter `experiment_id` values (stored as a list)
-- Saves to `additionalProperties.userNotes` + `description` via PUT
-- Records who made the update (decoded from CF_Authorization JWT)
+- Search biospecimens by name, tissue type, disease type, and specimen type in Aliquot
+- Filters out INACTIVE specimens automatically
+- Shows only specimens physically in inventory, with Drawer and Column location
+- Displays H&E images inline where available
 
 **Deploy to Railway (share with team):**
 ```bash
