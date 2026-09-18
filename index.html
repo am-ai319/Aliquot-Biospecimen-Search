@@ -96,6 +96,7 @@
 
     /* Row cells */
     .td{padding:8px;font-size:.85rem;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .td-wrap{white-space:normal;overflow:visible;text-overflow:unset}
     .td a{color:var(--blue);text-decoration:none;font-weight:600}
     .td a:hover{text-decoration:underline}
     .td-muted{color:#6b7280;font-size:.8rem}
@@ -552,7 +553,7 @@ function renderResults(results) {
               <div class="td">${r.bioSpecimenType ? `<span class="type-badge">${formatType(r.bioSpecimenType)}</span>` : '—'}</div>
               <div class="td td-muted">${tissue}</div>
               <div class="td td-muted">${disease}</div>
-              <div class="td">${inv}</div>
+              <div class="td td-wrap">${inv}</div>
             </div>
             <div class="row-detail hidden" id="detail-${r.id}">
               <div class="detail-grid">
