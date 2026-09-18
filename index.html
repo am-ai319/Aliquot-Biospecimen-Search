@@ -67,7 +67,7 @@
     /* Table */
     .bio-table{background:#fff;border:1px solid var(--border);border-radius:12px;
       overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04)}
-    .table-cols{grid-template-columns:40px 36px 1fr 150px 160px 180px 220px}
+    .table-cols{grid-template-columns:40px 36px 1fr 150px 160px 180px 220px 90px}
     .table-header{display:grid;padding:0 16px;border-bottom:1px solid var(--border);background:#f9fafb}
     .table-header .th{padding:10px 8px;font-size:.75rem;font-weight:600;color:#6b7280;
       text-transform:uppercase;letter-spacing:.04em}
@@ -525,6 +525,7 @@ function renderResults(results) {
         <div class="th">Tissue Types</div>
         <div class="th">Disease Type</div>
         <div class="th">Inventory Location</div>
+        <div class="th">H&amp;E</div>
       </div>
       ${results.map((r) => {
         const aliquotUrl = `https://aliquot.txgmesh.net/biospecimen/${r.id || r.name}`;
@@ -548,12 +549,12 @@ function renderResults(results) {
               </div>
               <div class="td">
                 <a href="${aliquotUrl}" target="_blank">${r.name || r.id}</a>
-                ${heImage ? `&nbsp;<a href="${heImage}" target="_blank" style="font-size:.75rem;color:#6366f1;font-weight:400">[H&amp;E ↗]</a>` : ''}
               </div>
               <div class="td">${r.bioSpecimenType ? `<span class="type-badge">${formatType(r.bioSpecimenType)}</span>` : '—'}</div>
               <div class="td td-muted">${tissue}</div>
               <div class="td td-muted">${disease}</div>
               <div class="td td-wrap">${inv}</div>
+              <div class="td">${heImage ? `<a href="${heImage}" target="_blank" style="color:#6366f1;font-weight:600">View ↗</a>` : '<span style="color:#9ca3af">—</span>'}</div>
             </div>
             <div class="row-detail hidden" id="detail-${r.id}">
               <div class="detail-grid">
