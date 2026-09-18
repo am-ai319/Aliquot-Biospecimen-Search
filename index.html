@@ -60,27 +60,22 @@
 
     /* Results Grid */
     .results-container{display:grid;gap:16px}
+    .results-heading{font-size:.8rem;font-weight:600;color:#6b7280;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:4px}
     .result-card{background:#fff;border:1px solid var(--border);border-radius:12px;
-      padding:20px;display:grid;grid-template-columns:300px 1fr;gap:20px;
+      padding:20px;display:grid;grid-template-columns:40px 1fr;gap:16px;
       box-shadow:0 1px 3px rgba(0,0,0,.04);transition:box-shadow .15s}
     .result-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
+    .result-card.saved{border-color:#6366f1;background:#fafafa}
 
-    /* Image Viewer */
-    .image-panel{position:relative;background:#f9fafb;border:1px solid var(--border);
-      border-radius:8px;overflow:hidden;height:280px}
-    .image-viewer{width:100%;height:100%;cursor:move;overflow:hidden;position:relative}
-    .image-viewer img{display:block;transform-origin:0 0;transition:none;
-      position:absolute;top:0;left:0}
-    .image-placeholder{display:flex;align-items:center;justify-content:center;
-      height:100%;color:#9ca3af;font-size:.9rem}
-    .zoom-controls{position:absolute;top:8px;right:8px;display:flex;gap:4px;
-      background:rgba(255,255,255,.95);padding:4px;border-radius:6px;
-      box-shadow:0 2px 8px rgba(0,0,0,.15)}
-    .zoom-btn{width:28px;height:28px;border:none;border-radius:4px;
-      background:#f3f4f6;color:#374151;cursor:pointer;font-size:1.1rem;
-      font-weight:600;line-height:1;display:flex;align-items:center;
-      justify-content:center;transition:background .15s}
-    .zoom-btn:hover{background:#e5e7eb}
+    /* Save checkbox */
+    .save-col{display:flex;flex-direction:column;align-items:center;padding-top:2px}
+    .save-cb{appearance:none;width:22px;height:22px;border:2px solid var(--border);
+      border-radius:6px;cursor:pointer;transition:all .15s;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;position:relative}
+    .save-cb:checked{background:var(--purple);border-color:var(--purple)}
+    .save-cb:checked::after{content:'✓';position:absolute;color:#fff;font-size:13px;font-weight:700}
+    .save-cb:hover:not(:checked){border-color:var(--purple)}
 
     /* Result Info */
     .result-info{display:flex;flex-direction:column;gap:12px}
@@ -217,6 +212,7 @@
   </div>
 
   <!-- Results -->
+  <div id="resultsHeading" class="results-heading hidden"></div>
   <div id="resultsContainer" class="results-container hidden"></div>
 
 </div>
@@ -225,8 +221,38 @@
 // ─── State ────────────────────────────────────────────────────────────────
 let userEmail = '';
 let userName = '';
-let imageStates = {}; // Track pan/zoom state for each image
 let cfToken = localStorage.getItem('cf_token') || '';
+let savedBlocks = JSON.parse(localStorage.getItem('saved_blocks') || '{}');
+
+// ─── Save / Unsave ────────────────────────────────────────────────────────
+function toggleSave(id, encodedRecord) {
+  const record = JSON.parse(decodeURIComponent(encodedRecord));
+  if (savedBlocks[id]) {
+    delete savedBlocks[id];
+  } else {
+    savedBlocks[id] = record;
+  }
+  localStorage.setItem('saved_blocks', JSON.stringify(savedBlocks));
+  // Update card border
+  const card = document.getElementById(`card-${id}`);
+  if (card) card.classList.toggle('saved', !!savedBlocks[id]);
+}
+
+function showSavedBlocks() {
+  const heading = document.getElementById('resultsHeading');
+  const container = document.getElementById('resultsContainer');
+  const saved = Object.values(savedBlocks);
+  if (!saved.length) {
+    heading.textContent = '';
+    heading.classList.add('hidden');
+    container.innerHTML = '<p style="text-align:center;color:#9ca3af;padding:40px">No saved blocks yet — check the box on any result to save it here.</p>';
+    container.classList.remove('hidden');
+    return;
+  }
+  heading.textContent = `Saved Blocks (${saved.length})`;
+  heading.classList.remove('hidden');
+  renderResults(saved);
+}
 
 // ─── Authentication ───────────────────────────────────────────────────────
 function saveCFToken() {
@@ -290,6 +316,7 @@ window.addEventListener('DOMContentLoaded', () => {
   checkAuth();
   loadTissueTypes();
   loadDiseaseTypes();
+  showSavedBlocks();
 });
 
 async function loadDiseaseTypes() {
@@ -383,6 +410,9 @@ async function doSearch(event) {
       results = await fetchInventoryLocations(results);
     }
 
+    const heading = document.getElementById('resultsHeading');
+    heading.textContent = `Search Results (${results.length})`;
+    heading.classList.remove('hidden');
     renderResults(results);
     setStatus('searchStatus',
       `Found ${results.length} biospecimen${results.length === 1 ? '' : 's'}`, 'ok');
@@ -467,26 +497,20 @@ function renderResults(results) {
     return;
   }
 
-  imageStates = {};
-  container.innerHTML = results.map((r, idx) => {
+  container.innerHTML = results.map((r) => {
     const aliquotUrl = `https://aliquot.txgmesh.net/biospecimen/${r.id || r.name}`;
     const heImage = findHEImage(r);
     const diseases = extractDiseases(r);
+    const isSaved = !!savedBlocks[r.id];
+    const encodedRecord = encodeURIComponent(JSON.stringify(r));
 
     return `
-      <div class="result-card">
-        <!-- Image Panel -->
-        <div class="image-panel">
-          ${heImage ? `
-            <div style="display:flex;align-items:center;justify-content:center;height:100%;background:#f9fafb;border-radius:8px;">
-              <a href="${heImage}" target="_blank"
-                 style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:#6366f1;color:#fff;border-radius:8px;text-decoration:none;font-size:0.875rem;font-weight:600;">
-                View H&amp;E Image ↗
-              </a>
-            </div>
-          ` : `
-            <div class="image-placeholder">No H&E image available</div>
-          `}
+      <div class="result-card${isSaved ? ' saved' : ''}" id="card-${r.id}">
+        <!-- Save checkbox -->
+        <div class="save-col">
+          <input type="checkbox" class="save-cb" id="save-${r.id}"
+            ${isSaved ? 'checked' : ''}
+            onchange="toggleSave('${r.id}', '${encodedRecord}')">
         </div>
 
         <!-- Info Panel -->
@@ -520,11 +544,13 @@ function renderResults(results) {
               <div class="info-label">Disease Type</div>
               <div class="info-value">${r.diseaseType.name}</div>
             ` : ''}
-            <div class="info-label">Inventory Location</div>
-            <div class="info-value">${formatInventory(r.inventoryLocations)}</div>
-            ${r.experiments?.length ? `
-              <div class="info-label">Experiments</div>
-              <div class="info-value">${r.experiments.length} experiment(s)</div>
+            ${r.inventoryLocations?.length ? `
+              <div class="info-label">Inventory Location</div>
+              <div class="info-value">${formatInventory(r.inventoryLocations)}</div>
+            ` : ''}
+            ${heImage ? `
+              <div class="info-label">H&amp;E Image</div>
+              <div class="info-value"><a href="${heImage}" target="_blank">View H&amp;E Image ↗</a></div>
             ` : ''}
             <div class="info-label">Specimen ID</div>
             <div class="info-value" style="font-family:monospace;font-size:0.8rem;color:#6b7280;">${r.id}</div>
@@ -535,134 +561,6 @@ function renderResults(results) {
   }).join('');
 
   container.classList.remove('hidden');
-
-  // Initialize image states
-  results.forEach((r, idx) => {
-    if (findHEImage(r)) {
-      initImageState(idx);
-    }
-  });
-}
-
-// ─── Image Viewer ─────────────────────────────────────────────────────────
-function initImageState(idx) {
-  const img = document.getElementById(`img-${idx}`);
-  if (!img) return;
-
-  img.onload = () => {
-    const viewer = document.getElementById(`viewer-${idx}`);
-    const scale = Math.min(
-      viewer.clientWidth / img.naturalWidth,
-      viewer.clientHeight / img.naturalHeight,
-      1
-    );
-
-    imageStates[idx] = {
-      scale: scale,
-      x: 0,
-      y: 0,
-      isDragging: false,
-      startX: 0,
-      startY: 0
-    };
-    updateTransform(idx);
-  };
-}
-
-function updateTransform(idx) {
-  const state = imageStates[idx];
-  const img = document.getElementById(`img-${idx}`);
-  if (img && state) {
-    img.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
-  }
-}
-
-function startPan(event, idx) {
-  event.preventDefault();
-  const state = imageStates[idx];
-  if (!state) return;
-
-  state.isDragging = true;
-  state.startX = event.clientX - state.x;
-  state.startY = event.clientY - state.y;
-
-  const viewer = document.getElementById(`viewer-${idx}`);
-
-  function onMove(e) {
-    if (!state.isDragging) return;
-    state.x = e.clientX - state.startX;
-    state.y = e.clientY - state.startY;
-    updateTransform(idx);
-  }
-
-  function onUp() {
-    state.isDragging = false;
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-  }
-
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onUp);
-}
-
-function handleWheel(event, idx) {
-  event.preventDefault();
-  const state = imageStates[idx];
-  if (!state) return;
-
-  const delta = event.deltaY > 0 ? 1/1.1 : 1.1;
-  const viewer = document.getElementById(`viewer-${idx}`);
-  const rect = viewer.getBoundingClientRect();
-  const mouseX = event.clientX - rect.left;
-  const mouseY = event.clientY - rect.top;
-
-  // Zoom towards mouse position
-  const oldScale = state.scale;
-  state.scale *= delta;
-  state.scale = Math.max(0.1, Math.min(state.scale, 5));
-
-  const scaleChange = state.scale / oldScale;
-  state.x = mouseX - (mouseX - state.x) * scaleChange;
-  state.y = mouseY - (mouseY - state.y) * scaleChange;
-
-  updateTransform(idx);
-}
-
-function zoom(idx, factor) {
-  const state = imageStates[idx];
-  if (!state) return;
-
-  const viewer = document.getElementById(`viewer-${idx}`);
-  const centerX = viewer.clientWidth / 2;
-  const centerY = viewer.clientHeight / 2;
-
-  const oldScale = state.scale;
-  state.scale *= factor;
-  state.scale = Math.max(0.1, Math.min(state.scale, 5));
-
-  const scaleChange = state.scale / oldScale;
-  state.x = centerX - (centerX - state.x) * scaleChange;
-  state.y = centerY - (centerY - state.y) * scaleChange;
-
-  updateTransform(idx);
-}
-
-function resetZoom(idx) {
-  const state = imageStates[idx];
-  const img = document.getElementById(`img-${idx}`);
-  const viewer = document.getElementById(`viewer-${idx}`);
-  if (!state || !img || !viewer) return;
-
-  const scale = Math.min(
-    viewer.clientWidth / img.naturalWidth,
-    viewer.clientHeight / img.naturalHeight,
-    1
-  );
-
-  state.scale = scale;
-  state.x = 0;
-  state.y = 0;
-  updateTransform(idx);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -731,8 +629,8 @@ function formatType(type) {
 
 function clearForm() {
   document.getElementById('searchForm').reset();
-  document.getElementById('resultsContainer').classList.add('hidden');
   setStatus('searchStatus', '', '');
+  showSavedBlocks();
 }
 
 function setStatus(id, msg, type) {
