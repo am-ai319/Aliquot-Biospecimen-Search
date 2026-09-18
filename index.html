@@ -58,51 +58,58 @@
     .status.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;display:block}
     .status.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca;display:block}
 
-    /* Results Grid */
-    .results-container{display:grid;gap:16px}
+    .hidden{display:none!important}
+
+    /* Results heading */
     .results-heading{font-size:.8rem;font-weight:600;color:#6b7280;text-transform:uppercase;
-      letter-spacing:.05em;margin-bottom:4px}
-    .result-card{background:#fff;border:1px solid var(--border);border-radius:12px;
-      padding:20px;display:grid;grid-template-columns:40px 1fr;gap:16px;
-      box-shadow:0 1px 3px rgba(0,0,0,.04);transition:box-shadow .15s}
-    .result-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
-    .result-card.saved{border-color:#6366f1;background:#fafafa}
+      letter-spacing:.05em;margin-bottom:8px}
+
+    /* Table */
+    .bio-table{background:#fff;border:1px solid var(--border);border-radius:12px;
+      overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+    .table-cols{grid-template-columns:40px 36px 1fr 150px 160px 180px 220px}
+    .table-header{display:grid;padding:0 16px;border-bottom:1px solid var(--border);background:#f9fafb}
+    .table-header .th{padding:10px 8px;font-size:.75rem;font-weight:600;color:#6b7280;
+      text-transform:uppercase;letter-spacing:.04em}
+    .bio-row{border-bottom:1px solid var(--border)}
+    .bio-row:last-child{border-bottom:none}
+    .row-main{display:grid;padding:0 16px;align-items:center;cursor:default;
+      transition:background .1s;min-height:48px}
+    .row-main:hover{background:#fafafa}
+    .row-main.saved-row{background:#faf5ff}
 
     /* Save checkbox */
-    .save-col{display:flex;flex-direction:column;align-items:center;padding-top:2px}
-    .save-cb{appearance:none;width:22px;height:22px;border:2px solid var(--border);
-      border-radius:6px;cursor:pointer;transition:all .15s;flex-shrink:0;
-      display:flex;align-items:center;justify-content:center;position:relative}
+    .save-cb{appearance:none;width:18px;height:18px;border:2px solid var(--border);
+      border-radius:4px;cursor:pointer;transition:all .15s;flex-shrink:0;position:relative;
+      display:inline-block}
     .save-cb:checked{background:var(--purple);border-color:var(--purple)}
-    .save-cb:checked::after{content:'✓';position:absolute;color:#fff;font-size:13px;font-weight:700}
+    .save-cb:checked::after{content:'✓';position:absolute;color:#fff;font-size:11px;
+      font-weight:700;top:50%;left:50%;transform:translate(-50%,-50%)}
     .save-cb:hover:not(:checked){border-color:var(--purple)}
 
-    /* Result Info */
-    .result-info{display:flex;flex-direction:column;gap:12px}
-    .result-header{display:flex;justify-content:space-between;align-items:start;gap:12px}
-    .result-name{font-size:1.15rem;font-weight:700;color:#111}
-    .result-name a{color:var(--blue);text-decoration:none}
-    .result-name a:hover{text-decoration:underline}
-    .result-type{display:inline-block;padding:4px 10px;border-radius:6px;
-      background:#e0e7ff;color:#4338ca;font-size:.75rem;font-weight:600}
+    /* Expand chevron */
+    .expand-btn{background:none;border:none;cursor:pointer;padding:4px;color:#9ca3af;
+      font-size:1rem;line-height:1;border-radius:4px;transition:all .15s;display:flex;
+      align-items:center;justify-content:center}
+    .expand-btn:hover{background:#f3f4f6;color:#374151}
+    .expand-btn.open{transform:rotate(90deg);color:#6366f1}
 
-    .info-grid{display:grid;grid-template-columns:140px 1fr;gap:8px 12px;
-      font-size:.85rem;padding:12px;background:#f9fafb;border-radius:8px}
-    .info-label{color:#6b7280;font-weight:500}
-    .info-value{color:#111827;word-break:break-word}
-    .info-value a{color:var(--blue);text-decoration:none}
-    .info-value a:hover{text-decoration:underline}
+    /* Row cells */
+    .td{padding:8px;font-size:.85rem;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .td a{color:var(--blue);text-decoration:none;font-weight:600}
+    .td a:hover{text-decoration:underline}
+    .td-muted{color:#6b7280;font-size:.8rem}
+    .type-badge{display:inline-block;padding:2px 8px;border-radius:4px;
+      background:#e0e7ff;color:#4338ca;font-size:.72rem;font-weight:600}
 
-    .disease-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-    .disease-tag{padding:4px 10px;border-radius:6px;background:#fef3c7;
-      color:#92400e;font-size:.75rem;font-weight:500}
-
-    .hidden{display:none!important}
-    .loading{opacity:.6;pointer-events:none}
-
-    /* Help text */
-    .help-text{font-size:.8rem;color:var(--gray);margin-top:8px;
-      padding:10px;background:#f9fafb;border-radius:6px}
+    /* Detail panel */
+    .row-detail{background:#eff6ff;border-top:1px solid #bfdbfe;padding:20px 24px}
+    .detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 24px}
+    .detail-field{display:flex;flex-direction:column;gap:2px}
+    .detail-label{font-size:.72rem;color:#6b7280;font-weight:500}
+    .detail-value{font-size:.85rem;color:#111827;word-break:break-word}
+    .detail-value a{color:var(--blue);text-decoration:none}
+    .detail-value a:hover{text-decoration:underline}
   </style>
 </head>
 <body>
@@ -487,6 +494,15 @@ async function filterByImages(records) {
   return results.filter(r => r !== null);
 }
 
+// ─── Expand/Collapse ──────────────────────────────────────────────────────
+function toggleExpand(id) {
+  const detail = document.getElementById(`detail-${id}`);
+  const btn = document.getElementById(`expand-${id}`);
+  const isOpen = !detail.classList.contains('hidden');
+  detail.classList.toggle('hidden', isOpen);
+  btn.classList.toggle('open', !isOpen);
+}
+
 // ─── Render Results ───────────────────────────────────────────────────────
 function renderResults(results) {
   const container = document.getElementById('resultsContainer');
@@ -497,68 +513,73 @@ function renderResults(results) {
     return;
   }
 
-  container.innerHTML = results.map((r) => {
-    const aliquotUrl = `https://aliquot.txgmesh.net/biospecimen/${r.id || r.name}`;
-    const heImage = findHEImage(r);
-    const diseases = extractDiseases(r);
-    const isSaved = !!savedBlocks[r.id];
-    const encodedRecord = encodeURIComponent(JSON.stringify(r));
-
-    return `
-      <div class="result-card${isSaved ? ' saved' : ''}" id="card-${r.id}">
-        <!-- Save checkbox -->
-        <div class="save-col">
-          <input type="checkbox" class="save-cb" id="save-${r.id}"
-            ${isSaved ? 'checked' : ''}
-            onchange="toggleSave('${r.id}', '${encodedRecord}')">
-        </div>
-
-        <!-- Info Panel -->
-        <div class="result-info">
-          <div class="result-header">
-            <div>
-              <div class="result-name">
-                <a href="${aliquotUrl}" target="_blank">${r.name || r.id}</a>
-              </div>
-              ${diseases.length ? `
-                <div class="disease-tags">
-                  ${diseases.map(d => `<span class="disease-tag">${d}</span>`).join('')}
-                </div>
-              ` : ''}
-            </div>
-            ${r.bioSpecimenType ? `
-              <span class="result-type">${formatType(r.bioSpecimenType)}</span>
-            ` : ''}
-          </div>
-
-          <div class="info-grid">
-            ${r.tissueTypes?.length ? `
-              <div class="info-label">Tissue Type</div>
-              <div class="info-value">${r.tissueTypes.map(t => t.name).join(', ')}</div>
-            ` : ''}
-            ${r.primaryDiagnosis ? `
-              <div class="info-label">Primary Diagnosis</div>
-              <div class="info-value">${r.primaryDiagnosis}</div>
-            ` : ''}
-            ${r.diseaseType?.name ? `
-              <div class="info-label">Disease Type</div>
-              <div class="info-value">${r.diseaseType.name}</div>
-            ` : ''}
-            ${r.inventoryLocations?.length ? `
-              <div class="info-label">Inventory Location</div>
-              <div class="info-value">${formatInventory(r.inventoryLocations)}</div>
-            ` : ''}
-            ${heImage ? `
-              <div class="info-label">H&amp;E Image</div>
-              <div class="info-value"><a href="${heImage}" target="_blank">View H&amp;E Image ↗</a></div>
-            ` : ''}
-            <div class="info-label">Specimen ID</div>
-            <div class="info-value" style="font-family:monospace;font-size:0.8rem;color:#6b7280;">${r.id}</div>
-          </div>
-        </div>
+  const cols = 'table-cols';
+  container.innerHTML = `
+    <div class="bio-table">
+      <div class="table-header table-cols ${cols}">
+        <div class="th"></div>
+        <div class="th"></div>
+        <div class="th">BioSpecimen ID</div>
+        <div class="th">Type</div>
+        <div class="th">Tissue Types</div>
+        <div class="th">Disease Type</div>
+        <div class="th">Inventory Location</div>
       </div>
-    `;
-  }).join('');
+      ${results.map((r) => {
+        const aliquotUrl = `https://aliquot.txgmesh.net/biospecimen/${r.id || r.name}`;
+        const heImage = findHEImage(r);
+        const isSaved = !!savedBlocks[r.id];
+        const encodedRecord = encodeURIComponent(JSON.stringify(r));
+        const tissue = r.tissueTypes?.map(t => t.name).join(', ') || '—';
+        const disease = r.diseaseType?.name || (Array.isArray(r.diseaseType) ? r.diseaseType.map(d=>d.name||d).join(', ') : '') || '—';
+        const inv = r.inventoryLocations?.length ? formatInventory(r.inventoryLocations) : '<span style="color:#9ca3af">—</span>';
+
+        return `
+          <div class="bio-row" id="card-${r.id}">
+            <div class="row-main table-cols${isSaved ? ' saved-row' : ''}">
+              <div class="td" style="display:flex;align-items:center">
+                <input type="checkbox" class="save-cb" id="save-${r.id}"
+                  ${isSaved ? 'checked' : ''}
+                  onchange="toggleSave('${r.id}', '${encodedRecord}')">
+              </div>
+              <div class="td" style="display:flex;align-items:center">
+                <button class="expand-btn" id="expand-${r.id}" onclick="toggleExpand('${r.id}')">›</button>
+              </div>
+              <div class="td">
+                <a href="${aliquotUrl}" target="_blank">${r.name || r.id}</a>
+                ${heImage ? `&nbsp;<a href="${heImage}" target="_blank" style="font-size:.75rem;color:#6366f1;font-weight:400">[H&amp;E ↗]</a>` : ''}
+              </div>
+              <div class="td">${r.bioSpecimenType ? `<span class="type-badge">${formatType(r.bioSpecimenType)}</span>` : '—'}</div>
+              <div class="td td-muted">${tissue}</div>
+              <div class="td td-muted">${disease}</div>
+              <div class="td">${inv}</div>
+            </div>
+            <div class="row-detail hidden" id="detail-${r.id}">
+              <div class="detail-grid">
+                <div class="detail-field"><span class="detail-label">BioSpecimen ID</span><span class="detail-value" style="font-family:monospace">${r.name || r.id}</span></div>
+                <div class="detail-field"><span class="detail-label">Type</span><span class="detail-value">${r.bioSpecimenType || '—'}</span></div>
+                <div class="detail-field"><span class="detail-label">Status</span><span class="detail-value">${r.status || '—'}</span></div>
+                <div class="detail-field"><span class="detail-label">Tissue Types</span><span class="detail-value">${tissue}</span></div>
+                <div class="detail-field"><span class="detail-label">Disease Type</span><span class="detail-value">${disease}</span></div>
+                <div class="detail-field"><span class="detail-label">Primary Diagnosis</span><span class="detail-value">${r.primaryDiagnosis || '—'}</span></div>
+                <div class="detail-field"><span class="detail-label">Cell Types</span><span class="detail-value">${r.cellTypes?.map(c=>c.name||c).join(', ') || '—'}</span></div>
+                <div class="detail-field"><span class="detail-label">Vendor</span><span class="detail-value">${r.vendor?.name || r.vendorName || '—'}</span></div>
+                <div class="detail-field"><span class="detail-label">Owner</span><span class="detail-value">${r.owner || '—'}</span></div>
+                <div class="detail-field"><span class="detail-label">Experiments</span><span class="detail-value">${r.experiments?.length ? r.experiments.length + ' experiment(s)' : '—'}</span></div>
+                <div class="detail-field"><span class="detail-label">Lot Number</span><span class="detail-value">${r.lotNumber || '—'}</span></div>
+                <div class="detail-field"><span class="detail-label">Donor ID</span><span class="detail-value">${r.donorId || r.additionalProperties?.DonorId || '—'}</span></div>
+                <div class="detail-field"><span class="detail-label">Receipt Date</span><span class="detail-value">${r.receiptDate ? r.receiptDate.slice(0,10) : '—'}</span></div>
+                <div class="detail-field"><span class="detail-label">Updated At</span><span class="detail-value">${r.updatedAt ? r.updatedAt.slice(0,10) : '—'}</span></div>
+                ${r.inventoryLocations?.length ? `<div class="detail-field"><span class="detail-label">Inventory Location</span><span class="detail-value">${formatInventory(r.inventoryLocations)}</span></div>` : ''}
+                ${heImage ? `<div class="detail-field"><span class="detail-label">H&amp;E Image</span><span class="detail-value"><a href="${heImage}" target="_blank">View H&amp;E Image ↗</a></span></div>` : ''}
+                ${r.additionalProperties?.userNotes ? `<div class="detail-field" style="grid-column:1/-1"><span class="detail-label">Notes</span><span class="detail-value">${JSON.stringify(r.additionalProperties.userNotes)}</span></div>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
 
   container.classList.remove('hidden');
 }
