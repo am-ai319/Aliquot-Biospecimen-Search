@@ -4,11 +4,12 @@ A web tool for searching biospecimens in [Aliquot](https://aliquot.txgmesh.net) 
 
 ## What it does
 
-- Search biospecimens by name, tissue type, disease type, and specimen type
+- Search biospecimens by name, tissue type (dropdown), disease type (dropdown), and specimen type
 - Automatically filters out **INACTIVE** specimens
-- Only shows specimens that are physically in inventory
-- Displays **Drawer** and **Column** location for each result
-- Displays H&E images inline where available
+- Optionally filters to only specimens physically in inventory, showing **Drawer** and **Column** location
+- Table view matching Aliquot's UI — collapsible rows with a full detail panel on expand
+- **Save** checkbox on each row to bookmark blocks for later; saved blocks shown on page load
+- H&E image link as a dedicated column; opens Ziggy viewer in a new tab
 
 ## APIs used
 
