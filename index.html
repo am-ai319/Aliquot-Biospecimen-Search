@@ -435,9 +435,21 @@ async function doSearch(event) {
 // ─── Fetch Inventory Locations ────────────────────────────────────────────
 async function fetchInventoryLocations(records) {
   const promises = records.map(async (r) => {
-    // FROZEN_OCT_BLOCK: storageLocation is on the biospecimen record itself
+    // FROZEN_OCT_BLOCK: fetch detail record to get storageLocation
     if (r.bioSpecimenType === 'FROZEN_OCT_BLOCK') {
-      r.inventoryLocations = r.storageLocation ? [{ storageLocation: r.storageLocation }] : [];
+      try {
+        const res = await fetch(`/api/biospecimens/${r.id}`, {
+          credentials: 'include',
+          headers: cfToken ? { 'X-CF-Token': cfToken } : {}
+        });
+        const detail = res.ok ? await res.json() : null;
+        const loc = detail?.storageLocation || detail?.data?.storageLocation;
+        console.log(`storageLocation for ${r.name}:`, loc);
+        r.inventoryLocations = loc ? [{ storageLocation: loc }] : [];
+      } catch (e) {
+        console.warn('Failed to fetch detail for', r.name, e);
+        r.inventoryLocations = [];
+      }
       return r;
     }
 
