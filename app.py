@@ -440,14 +440,6 @@ def search():
     if spec_type:
         params.append(f"bioSpecimenType={urllib.parse.quote(spec_type)}")
 
-    # Let Aliquot's own filter handle inventory pre-filtering
-    if has_inv:
-        params.append("hasInventoryLocations=true")
-    if has_img:
-        params.append("hasImageLinks=true")
-    if has_exp:
-        params.append("hasExperiments=true")
-
     query_string = "&".join(params)
     url = f"{ALIQUOT_BASE}?{query_string}"
     print(f"  API URL: {url}")
