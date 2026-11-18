@@ -443,8 +443,10 @@ async function fetchInventoryLocations(records) {
       const inv = res.ok ? await res.json() : null;
       console.log(`Inventory for ${r.name}:`, JSON.stringify(inv));
       const locations = Array.isArray(inv) ? inv : (inv?.data || []);
-      // Only keep locations that have boxHierarchy.boxName or boxHierarchy.rackName
-      r.inventoryLocations = locations.filter(loc => loc.boxHierarchy?.boxName || loc.boxHierarchy?.rackName);
+      // Keep locations that have boxHierarchy (FFPE) or storageLocation (Frozen)
+      r.inventoryLocations = locations.filter(loc =>
+        loc.boxHierarchy?.boxName || loc.boxHierarchy?.rackName || loc.storageLocation
+      );
     } catch (e) {
       console.warn('Failed to fetch inventory for', r.name, e);
       r.inventoryLocations = [];
@@ -534,7 +536,7 @@ function renderResults(results) {
         const encodedRecord = encodeURIComponent(JSON.stringify(r));
         const tissue = r.tissueTypes?.map(t => t.name).join(', ') || '—';
         const disease = r.diseaseType?.name || (Array.isArray(r.diseaseType) ? r.diseaseType.map(d=>d.name||d).join(', ') : '') || '—';
-        const inv = r.inventoryLocations?.length ? formatInventory(r.inventoryLocations) : '<span style="color:#9ca3af">—</span>';
+        const inv = r.inventoryLocations?.length ? formatInventory(r.inventoryLocations, r.bioSpecimenType) : '<span style="color:#9ca3af">—</span>';
 
         return `
           <div class="bio-row" id="card-${r.id}">
@@ -572,7 +574,7 @@ function renderResults(results) {
                 <div class="detail-field"><span class="detail-label">Donor ID</span><span class="detail-value">${r.donorId || r.additionalProperties?.DonorId || '—'}</span></div>
                 <div class="detail-field"><span class="detail-label">Receipt Date</span><span class="detail-value">${r.receiptDate ? r.receiptDate.slice(0,10) : '—'}</span></div>
                 <div class="detail-field"><span class="detail-label">Updated At</span><span class="detail-value">${r.updatedAt ? r.updatedAt.slice(0,10) : '—'}</span></div>
-                ${r.inventoryLocations?.length ? `<div class="detail-field"><span class="detail-label">Inventory Location</span><span class="detail-value">${formatInventory(r.inventoryLocations)}</span></div>` : ''}
+                ${r.inventoryLocations?.length ? `<div class="detail-field"><span class="detail-label">Inventory Location</span><span class="detail-value">${formatInventory(r.inventoryLocations, r.bioSpecimenType)}</span></div>` : ''}
                 ${heImage ? `<div class="detail-field"><span class="detail-label">H&amp;E Image</span><span class="detail-value"><a href="${heImage}" target="_blank">View H&amp;E Image ↗</a></span></div>` : ''}
                 ${r.additionalProperties?.userNotes ? `<div class="detail-field" style="grid-column:1/-1"><span class="detail-label">Notes</span><span class="detail-value">${JSON.stringify(r.additionalProperties.userNotes)}</span></div>` : ''}
               </div>
@@ -611,12 +613,17 @@ function findHEImage(record) {
   return firstImage ? (firstImage.url || firstImage.link) : null;
 }
 
-function formatInventory(locations) {
+function formatInventory(locations, bioSpecimenType) {
   if (!locations || locations.length === 0)
     return '<span style="color:#9ca3af">Not in inventory</span>';
 
+  const isFrozen = bioSpecimenType === 'FROZEN_OCT_BLOCK';
+
   return locations.map(loc => {
     if (typeof loc === 'string') return `<span style="color:#059669;font-weight:600">${loc}</span>`;
+    if (isFrozen && loc.storageLocation) {
+      return `<span style="color:#059669">Location of Block: <strong>${loc.storageLocation}</strong></span>`;
+    }
     const h = loc.boxHierarchy || {};
     const parts = [];
     if (h.rackName) parts.push(`Drawer: <strong>${h.rackName}</strong>`);
