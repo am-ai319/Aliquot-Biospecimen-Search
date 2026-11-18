@@ -435,7 +435,7 @@ async function doSearch(event) {
 // ─── Fetch Inventory Locations ────────────────────────────────────────────
 async function fetchInventoryLocations(records) {
   const promises = records.map(async (r) => {
-    // FROZEN_OCT_BLOCK: fetch detail record to get storageLocation
+    // FROZEN_OCT_BLOCK: fetch detail record and read storageLocation from additionalProperties
     if (r.bioSpecimenType === 'FROZEN_OCT_BLOCK') {
       try {
         const res = await fetch(`/api/biospecimens/${r.id}`, {
@@ -443,7 +443,7 @@ async function fetchInventoryLocations(records) {
           headers: cfToken ? { 'X-CF-Token': cfToken } : {}
         });
         const detail = res.ok ? await res.json() : null;
-        const loc = detail?.storageLocation || detail?.data?.storageLocation;
+        const loc = detail?.additionalProperties?.storageLocation;
         console.log(`storageLocation for ${r.name}:`, loc);
         r.inventoryLocations = loc ? [{ storageLocation: loc }] : [];
       } catch (e) {
