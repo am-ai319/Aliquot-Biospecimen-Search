@@ -435,6 +435,13 @@ async function doSearch(event) {
 // ─── Fetch Inventory Locations ────────────────────────────────────────────
 async function fetchInventoryLocations(records) {
   const promises = records.map(async (r) => {
+    // FROZEN_OCT_BLOCK: storageLocation is on the biospecimen record itself
+    if (r.bioSpecimenType === 'FROZEN_OCT_BLOCK') {
+      r.inventoryLocations = r.storageLocation ? [{ storageLocation: r.storageLocation }] : [];
+      return r;
+    }
+
+    // FFPE and others: call the /inventory endpoint
     try {
       const res = await fetch(`/api/biospecimens/${r.id}/inventory`, {
         credentials: 'include',
@@ -443,9 +450,8 @@ async function fetchInventoryLocations(records) {
       const inv = res.ok ? await res.json() : null;
       console.log(`Inventory for ${r.name}:`, JSON.stringify(inv));
       const locations = Array.isArray(inv) ? inv : (inv?.data || []);
-      // Keep locations that have boxHierarchy (FFPE) or storageLocation (Frozen)
       r.inventoryLocations = locations.filter(loc =>
-        loc.boxHierarchy?.boxName || loc.boxHierarchy?.rackName || loc.storageLocation
+        loc.boxHierarchy?.boxName || loc.boxHierarchy?.rackName
       );
     } catch (e) {
       console.warn('Failed to fetch inventory for', r.name, e);
